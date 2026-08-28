@@ -1,0 +1,15 @@
+# Node & Frontend dependencies
+node_modules/
+.next/
+dist/
+build/
+
+# Python & Backend environments
+__pycache__/
+*.pyc
+venv/
+.env
+
+# OS / Editor junk
+.DS_Store
+.vscode/
