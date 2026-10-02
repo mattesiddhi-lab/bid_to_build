@@ -189,9 +189,10 @@
       </div>
     </section>
 
-    <!-- CONTENT LAYOUT: User form on left/top, Complaints on right/bottom -->
+    <!-- CONTENT LAYOUT: User form on left/top (for users only), Complaints on right/bottom (full width for admins) -->
     <div class="content-layout" id="contentLayout">
-      <!-- COMPLAINT SUBMISSION FORM SECTION -->
+      {% if not user or user.role != 'admin' %}
+      <!-- COMPLAINT SUBMISSION FORM SECTION (Resident / User mode only) -->
       <section class="form-section card" id="complaintFormSection">
         <div class="card-header">
           <h2 class="card-title">📝 Report a Complaint</h2>
@@ -295,6 +296,7 @@
           </div>
         </form>
       </section>
+      {% endif %}
 
       <!-- COMPLAINTS LIST SECTION -->
       <section class="list-section card">

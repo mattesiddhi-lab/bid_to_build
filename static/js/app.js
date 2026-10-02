@@ -575,61 +575,66 @@ async function advanceStatus(complaintId) {
 }
 
 // ==========================================================================
+// ==========================================================================
 // Form Submission
 // ==========================================================================
-complaintForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
+if (complaintForm) {
+  complaintForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-  const formData = new FormData(complaintForm);
-  submitBtn.disabled = true;
-  submitBtnText.textContent = 'Submitting...';
-
-  try {
-    const res = await fetch('/api/complaints', {
-      method: 'POST',
-      body: formData
-    });
-
-    const data = await res.json();
-    if (res.ok && data.success) {
-      if (data.auto_flagged && data.trigger_keyword) {
-        showToast(`Auto-detected as ${data.complaint.priority}: ${data.trigger_keyword}`, 'success');
-      } else {
-        showToast(`Complaint ${data.complaint.ticket_no} submitted successfully!`, 'success');
-      }
-      complaintForm.reset();
-      clearPhotoPreview();
-
-      // Reset priority radio to Low
-      const lowRadio = complaintForm.querySelector('input[name="priority"][value="Low"]');
-      if (lowRadio) lowRadio.checked = true;
-
-      if (state.currentRole === 'admin') {
-        await loadWorkload();
-        await loadLocationSummary();
-      }
-      await loadStats();
-      await loadComplaints();
-    } else {
-      showToast(data.error || 'Failed to submit complaint', 'error');
+    const formData = new FormData(complaintForm);
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      if (submitBtnText) submitBtnText.textContent = 'Submitting...';
     }
-  } catch (err) {
-    console.error('Error submitting form:', err);
-    showToast('Network error while submitting complaint', 'error');
-  } finally {
-    submitBtn.disabled = false;
-    submitBtnText.textContent = 'Submit Maintenance Ticket';
-  }
-});
+
+    try {
+      const res = await fetch('/api/complaints', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (data.auto_flagged && data.trigger_keyword) {
+          showToast(`Auto-detected as ${data.complaint.priority}: ${data.trigger_keyword}`, 'success');
+        } else {
+          showToast(`Complaint ${data.complaint.ticket_no} submitted successfully!`, 'success');
+        }
+        complaintForm.reset();
+        clearPhotoPreview();
+
+        // Reset priority radio to Low
+        const lowRadio = complaintForm.querySelector('input[name="priority"][value="Low"]');
+        if (lowRadio) lowRadio.checked = true;
+
+        if (state.currentRole === 'admin') {
+          await loadWorkload();
+          await loadLocationSummary();
+        }
+        await loadStats();
+        await loadComplaints();
+      } else {
+        showToast(data.error || 'Failed to submit complaint', 'error');
+      }
+    } catch (err) {
+      console.error('Error submitting form:', err);
+      showToast('Network error while submitting complaint', 'error');
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        if (submitBtnText) submitBtnText.textContent = 'Submit Maintenance Ticket';
+      }
+    }
+  });
+}
 
 // ==========================================================================
 // Photo Upload Preview & Drag-and-Drop
 // ==========================================================================
-photoInput.addEventListener('change', handleFileSelect);
-
 function handleFileSelect(e) {
   const file = e.target.files[0];
-  if (file) {
+  if (file && previewImg && uploadPreview && uploadPlaceholder) {
     const reader = new FileReader();
     reader.onload = (event) => {
       previewImg.src = event.target.result;
@@ -640,41 +645,49 @@ function handleFileSelect(e) {
   }
 }
 
-removePhotoBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  clearPhotoPreview();
-});
-
 function clearPhotoPreview() {
-  photoInput.value = '';
-  previewImg.src = '';
-  uploadPreview.classList.add('hidden');
-  uploadPlaceholder.classList.remove('hidden');
+  if (photoInput) photoInput.value = '';
+  if (previewImg) previewImg.src = '';
+  if (uploadPreview) uploadPreview.classList.add('hidden');
+  if (uploadPlaceholder) uploadPlaceholder.classList.remove('hidden');
+}
+
+if (photoInput) {
+  photoInput.addEventListener('change', handleFileSelect);
+}
+
+if (removePhotoBtn) {
+  removePhotoBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    clearPhotoPreview();
+  });
 }
 
 // Drag & drop handlers
-['dragenter', 'dragover'].forEach(eventName => {
-  dropArea.addEventListener(eventName, (e) => {
-    e.preventDefault();
-    dropArea.classList.add('dragover');
-  }, false);
-});
+if (dropArea && photoInput) {
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropArea.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      dropArea.classList.add('dragover');
+    }, false);
+  });
 
-['dragleave', 'drop'].forEach(eventName => {
-  dropArea.addEventListener(eventName, (e) => {
-    e.preventDefault();
-    dropArea.classList.remove('dragover');
-  }, false);
-});
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      dropArea.classList.remove('dragover');
+    }, false);
+  });
 
-dropArea.addEventListener('drop', (e) => {
-  const dt = e.dataTransfer;
-  const files = dt.files;
-  if (files.length > 0) {
-    photoInput.files = files;
-    handleFileSelect({ target: { files } });
-  }
-});
+  dropArea.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if (files && files.length > 0) {
+      photoInput.files = files;
+      handleFileSelect({ target: { files } });
+    }
+  });
+}
 
 // ==========================================================================
 // Photo Modal

@@ -422,12 +422,21 @@ body {
   }
 }
 
-/* User view: form is prominent at top */
+/* User view: form is prominent at top/left */
 body.mode-user .content-layout {
   grid-template-columns: 420px 1fr;
 }
 
 body.mode-user .admin-only-section {
+  display: none !important;
+}
+
+/* Admin view: form is hidden, complaints list & dashboard take full width (Rule 1) */
+body.mode-admin .content-layout {
+  grid-template-columns: 1fr;
+}
+
+body.mode-admin #complaintFormSection {
   display: none !important;
 }
 

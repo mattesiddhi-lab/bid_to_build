@@ -1045,6 +1045,10 @@ def get_complaint_history(complaint_id):
 @app.route("/api/complaints", methods=["POST"])
 @login_required
 def create_complaint():
+    # Rule 2: Admin accounts cannot create complaints (return 403)
+    if session.get("role") == "admin":
+        return jsonify({"error": "Admin accounts cannot create complaints."}), 403
+
     category = request.form.get("category", "").strip()
     location = request.form.get("location", "").strip()
     description = request.form.get("description", "").strip()
