@@ -848,6 +848,19 @@ textarea.form-control {
   border: 1px solid var(--low-border);
 }
 
+.badge-auto-flagged {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.45rem;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
 /* Status Badges */
 .badge-status-reported {
   background: var(--stat-reported-bg);

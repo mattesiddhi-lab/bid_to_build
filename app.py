@@ -1,4 +1,5 @@
 import os
+import re
 import sqlite3
 import uuid
 from datetime import datetime
@@ -19,6 +20,33 @@ STATUS_NEXT = {
     "In Progress": "Resolved",
 }
 
+CRITICAL_KEYWORDS = [
+    "sparking",
+    "spark",
+    "fire",
+    "smoke",
+    "exposed wiring",
+    "exposed wire",
+    "short circuit",
+    "electric shock",
+    "gas leak",
+    "flooding",
+    "flood",
+    "burst pipe",
+    "collapse",
+    "acid",
+]
+
+HIGH_KEYWORDS = [
+    "leaking",
+    "leak",
+    "broken glass",
+    "no water",
+    "no power",
+    "blackout",
+    "stuck",
+]
+
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max upload
@@ -34,6 +62,37 @@ def get_db():
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def detect_priority(description, user_priority):
+    """
+    Scans description (case-insensitive) for keywords.
+    - If Critical keyword found: raise to Critical (even if user selected lower).
+    - If only High keyword found and user selected Low or Medium: raise to High.
+    - Never lower a priority the user chose.
+    Returns: (final_priority, auto_flagged (0 or 1), trigger_keyword or None)
+    """
+    desc = description or ""
+    priority_levels = {"Low": 1, "Medium": 2, "High": 3, "Critical": 4}
+    user_level = priority_levels.get(user_priority, 1)
+
+    # Check Critical keywords first
+    for kw in CRITICAL_KEYWORDS:
+        pattern = r"\b" + re.escape(kw) + r"\b"
+        if re.search(pattern, desc, re.IGNORECASE):
+            if user_level < priority_levels["Critical"]:
+                return "Critical", 1, kw
+            return "Critical", 0, None
+
+    # Check High keywords next
+    for kw in HIGH_KEYWORDS:
+        pattern = r"\b" + re.escape(kw) + r"\b"
+        if re.search(pattern, desc, re.IGNORECASE):
+            if user_level < priority_levels["High"]:
+                return "High", 1, kw
+            return user_priority, 0, None
+
+    return user_priority, 0, None
 
 
 def init_db(seed_if_empty=True):
@@ -62,12 +121,21 @@ def init_db(seed_if_empty=True):
                 status TEXT NOT NULL DEFAULT 'Reported',
                 assigned_worker_id INTEGER,
                 photo_filename TEXT,
+                auto_flagged INTEGER DEFAULT 0,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 FOREIGN KEY (assigned_worker_id) REFERENCES workers(id)
             );
         """
         )
+
+        # Handle existing database safely: add column if missing without deleting data
+        cursor.execute("PRAGMA table_info(complaints)")
+        columns = [row["name"] for row in cursor.fetchall()]
+        if "auto_flagged" not in columns:
+            cursor.execute(
+                "ALTER TABLE complaints ADD COLUMN auto_flagged INTEGER DEFAULT 0"
+            )
 
         conn.commit()
 
@@ -108,6 +176,7 @@ def seed_data(conn):
                 "Reported",
                 None,
                 "sample_switchboard.svg",
+                0,
                 "2026-10-02 08:30:00",
                 "2026-10-02 08:30:00",
             ),
@@ -120,6 +189,7 @@ def seed_data(conn):
                 "In Progress",
                 2,  # Marcus Chen
                 "sample_water_leak.svg",
+                0,
                 "2026-10-01 14:15:00",
                 "2026-10-02 09:00:00",
             ),
@@ -132,6 +202,7 @@ def seed_data(conn):
                 "Assigned",
                 3,  # David Miller
                 "sample_broken_seat.svg",
+                0,
                 "2026-10-01 11:20:00",
                 "2026-10-01 16:00:00",
             ),
@@ -144,6 +215,7 @@ def seed_data(conn):
                 "In Progress",
                 4,  # Sarah Jenkins
                 None,
+                0,
                 "2026-10-02 07:45:00",
                 "2026-10-02 08:15:00",
             ),
@@ -156,6 +228,7 @@ def seed_data(conn):
                 "Resolved",
                 1,  # Rajesh Sharma
                 None,
+                0,
                 "2026-09-30 10:10:00",
                 "2026-10-01 12:00:00",
             ),
@@ -168,6 +241,7 @@ def seed_data(conn):
                 "Assigned",
                 2,  # Marcus Chen
                 None,
+                0,
                 "2026-10-02 09:10:00",
                 "2026-10-02 09:30:00",
             ),
@@ -180,6 +254,7 @@ def seed_data(conn):
                 "Reported",
                 None,
                 None,
+                0,
                 "2026-10-01 16:40:00",
                 "2026-10-01 16:40:00",
             ),
@@ -192,6 +267,7 @@ def seed_data(conn):
                 "Resolved",
                 4,  # Sarah Jenkins
                 None,
+                0,
                 "2026-09-29 18:00:00",
                 "2026-09-30 08:30:00",
             ),
@@ -204,6 +280,7 @@ def seed_data(conn):
                 "Assigned",
                 3,  # David Miller
                 None,
+                0,
                 "2026-10-01 09:00:00",
                 "2026-10-01 11:30:00",
             ),
@@ -216,6 +293,7 @@ def seed_data(conn):
                 "In Progress",
                 1,  # Rajesh Sharma
                 None,
+                0,
                 "2026-10-02 08:00:00",
                 "2026-10-02 08:45:00",
             ),
@@ -228,6 +306,7 @@ def seed_data(conn):
                 "Resolved",
                 2,  # Marcus Chen
                 None,
+                0,
                 "2026-09-28 11:00:00",
                 "2026-09-28 17:00:00",
             ),
@@ -240,6 +319,7 @@ def seed_data(conn):
                 "Reported",
                 None,
                 None,
+                0,
                 "2026-10-02 07:15:00",
                 "2026-10-02 07:15:00",
             ),
@@ -252,6 +332,7 @@ def seed_data(conn):
                 "In Progress",
                 3,  # David Miller
                 None,
+                0,
                 "2026-10-01 15:30:00",
                 "2026-10-02 09:15:00",
             ),
@@ -264,6 +345,7 @@ def seed_data(conn):
                 "Reported",
                 None,
                 None,
+                0,
                 "2026-10-02 06:50:00",
                 "2026-10-02 06:50:00",
             ),
@@ -276,6 +358,7 @@ def seed_data(conn):
                 "Assigned",
                 1,  # Rajesh Sharma
                 "sample_hallway_light.svg",
+                0,
                 "2026-10-01 21:00:00",
                 "2026-10-02 07:30:00",
             ),
@@ -288,6 +371,7 @@ def seed_data(conn):
                 "Reported",
                 None,
                 None,
+                0,
                 "2026-10-02 09:40:00",
                 "2026-10-02 09:40:00",
             ),
@@ -300,6 +384,7 @@ def seed_data(conn):
                 "Assigned",
                 4,  # Sarah Jenkins
                 None,
+                0,
                 "2026-10-01 17:00:00",
                 "2026-10-01 18:00:00",
             ),
@@ -312,6 +397,7 @@ def seed_data(conn):
                 "Resolved",
                 3,  # David Miller
                 None,
+                0,
                 "2026-09-29 14:00:00",
                 "2026-09-30 11:00:00",
             ),
@@ -324,6 +410,7 @@ def seed_data(conn):
                 "Reported",
                 None,
                 None,
+                0,
                 "2026-10-02 08:20:00",
                 "2026-10-02 08:20:00",
             ),
@@ -336,6 +423,7 @@ def seed_data(conn):
                 "Resolved",
                 1,  # Rajesh Sharma
                 None,
+                0,
                 "2026-09-30 13:00:00",
                 "2026-10-01 10:00:00",
             ),
@@ -345,8 +433,8 @@ def seed_data(conn):
             """
             INSERT INTO complaints (
                 ticket_no, category, location, description, priority, status,
-                assigned_worker_id, photo_filename, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                assigned_worker_id, photo_filename, auto_flagged, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             sample_complaints,
         )
@@ -414,6 +502,7 @@ def get_complaints():
         SELECT 
             c.id, c.ticket_no, c.category, c.location, c.description,
             c.priority, c.status, c.assigned_worker_id, c.photo_filename,
+            c.auto_flagged,
             c.created_at, c.updated_at,
             w.name AS assigned_worker_name,
             w.role AS assigned_worker_role,
@@ -441,7 +530,18 @@ def get_complaints():
         term = f"%{search_query}%"
         params.extend([term, term, term])
 
-    query += " ORDER BY c.id DESC"
+    # Rule 6: Critical complaints must appear at the top (sort by priority, then newest)
+    query += """
+        ORDER BY 
+            CASE c.priority 
+                WHEN 'Critical' THEN 1 
+                WHEN 'High' THEN 2 
+                WHEN 'Medium' THEN 3 
+                WHEN 'Low' THEN 4 
+                ELSE 5 
+            END ASC, 
+            c.id DESC
+    """
 
     with get_db() as conn:
         cursor = conn.cursor()
@@ -456,7 +556,7 @@ def create_complaint():
     category = request.form.get("category", "").strip()
     location = request.form.get("location", "").strip()
     description = request.form.get("description", "").strip()
-    priority = request.form.get("priority", "Low").strip()
+    user_priority = request.form.get("priority", "Low").strip()
 
     if not category or category not in CATEGORIES:
         return jsonify({"error": f"Invalid category. Must be one of {CATEGORIES}"}), 400
@@ -467,8 +567,13 @@ def create_complaint():
     if not description:
         return jsonify({"error": "Description is required"}), 400
 
-    if priority not in PRIORITIES:
+    if user_priority not in PRIORITIES:
         return jsonify({"error": f"Invalid priority. Must be one of {PRIORITIES}"}), 400
+
+    # Auto priority detection based on description keywords
+    final_priority, auto_flagged, trigger_keyword = detect_priority(
+        description, user_priority
+    )
 
     photo_filename = None
     if "photo" in request.files:
@@ -493,10 +598,20 @@ def create_complaint():
             """
             INSERT INTO complaints (
                 ticket_no, category, location, description, priority,
-                status, assigned_worker_id, photo_filename, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, 'Reported', NULL, ?, ?, ?)
+                status, assigned_worker_id, photo_filename, auto_flagged, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, 'Reported', NULL, ?, ?, ?, ?)
         """,
-            (ticket_no, category, location, description, priority, photo_filename, now, now),
+            (
+                ticket_no,
+                category,
+                location,
+                description,
+                final_priority,
+                photo_filename,
+                auto_flagged,
+                now,
+                now,
+            ),
         )
         new_id = cursor.lastrowid
         conn.commit()
@@ -506,6 +621,7 @@ def create_complaint():
             SELECT 
                 c.id, c.ticket_no, c.category, c.location, c.description,
                 c.priority, c.status, c.assigned_worker_id, c.photo_filename,
+                c.auto_flagged,
                 c.created_at, c.updated_at,
                 w.name AS assigned_worker_name,
                 w.role AS assigned_worker_role
@@ -517,7 +633,17 @@ def create_complaint():
         )
         new_complaint = dict(cursor.fetchone())
 
-    return jsonify({"success": True, "complaint": new_complaint}), 201
+    return (
+        jsonify(
+            {
+                "success": True,
+                "complaint": new_complaint,
+                "auto_flagged": bool(auto_flagged),
+                "trigger_keyword": trigger_keyword,
+            }
+        ),
+        201,
+    )
 
 
 @app.route("/api/complaints/<int:complaint_id>/assign", methods=["POST"])
@@ -561,6 +687,7 @@ def assign_worker(complaint_id):
             SELECT 
                 c.id, c.ticket_no, c.category, c.location, c.description,
                 c.priority, c.status, c.assigned_worker_id, c.photo_filename,
+                c.auto_flagged,
                 c.created_at, c.updated_at,
                 w.name AS assigned_worker_name,
                 w.role AS assigned_worker_role,
@@ -606,6 +733,7 @@ def advance_status(complaint_id):
             SELECT 
                 c.id, c.ticket_no, c.category, c.location, c.description,
                 c.priority, c.status, c.assigned_worker_id, c.photo_filename,
+                c.auto_flagged,
                 c.created_at, c.updated_at,
                 w.name AS assigned_worker_name,
                 w.role AS assigned_worker_role,

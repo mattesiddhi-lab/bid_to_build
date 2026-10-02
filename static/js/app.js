@@ -214,6 +214,7 @@ function renderComplaints() {
 
   const html = state.complaints.map(item => {
     const pBadge = priorityBadges[item.priority] || item.priority;
+    const autoFlaggedBadge = item.auto_flagged ? '<span class="badge badge-auto-flagged">Auto-flagged</span>' : '';
     const sBadge = statusBadges[item.status] || item.status;
     const catIcon = categoryIcons[item.category] || '🔧';
 
@@ -270,6 +271,7 @@ function renderComplaints() {
           </div>
           <div class="badges-group">
             ${pBadge}
+            ${autoFlaggedBadge}
             ${sBadge}
           </div>
         </div>
@@ -392,7 +394,11 @@ complaintForm.addEventListener('submit', async (e) => {
 
     const data = await res.json();
     if (res.ok && data.success) {
-      showToast(`Complaint ${data.complaint.ticket_no} submitted successfully!`, 'success');
+      if (data.auto_flagged && data.trigger_keyword) {
+        showToast(`Auto-detected as ${data.complaint.priority}: ${data.trigger_keyword}`, 'success');
+      } else {
+        showToast(`Complaint ${data.complaint.ticket_no} submitted successfully!`, 'success');
+      }
       complaintForm.reset();
       clearPhotoPreview();
 

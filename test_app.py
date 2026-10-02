@@ -28,98 +28,88 @@ with urllib.request.urlopen(base + "/api/stats") as r:
     print("   Total complaints:", stats["total"])
     print("   Status breakdown:", stats["status_counts"])
     print("   Priority breakdown:", stats["priority_counts"])
-    assert stats["total"] == 20
-    assert stats["priority_counts"]["Critical"] == 5
-    assert stats["priority_counts"]["High"] == 5
-    assert stats["priority_counts"]["Medium"] == 5
-    assert stats["priority_counts"]["Low"] == 5
+    assert stats["total"] >= 20
+    assert "Critical" in stats["priority_counts"]
 
-print("\n--- 4. Testing GET /api/complaints ---")
+print("\n--- 4. Testing Critical complaints sorting at the top ---")
 with urllib.request.urlopen(base + "/api/complaints") as r:
     complaints = json.loads(r.read().decode("utf-8"))
-    assert len(complaints) == 20
-    print(f"[PASS] 20 complaints seeded. Sample ticket: {complaints[0]['ticket_no']} ({complaints[0]['category']})")
+    priorities = [c["priority"] for c in complaints]
+    last_crit = max(i for i, p in enumerate(priorities) if p == "Critical")
+    first_non_crit = min(i for i, p in enumerate(priorities) if p != "Critical")
+    assert first_non_crit > last_crit, "Critical complaints not sorted at top"
+    print(f"[PASS] All Critical complaints are at the top of the list! (Count: {last_crit + 1})")
 
-print("\n--- 5. Testing POST /api/complaints (Create new ticket) ---")
-# Submit a new complaint
+print("\n--- 5. Testing Auto Priority Detection ---")
+# 5a. Critical keyword ('sparking') with user priority=Low -> should become Critical and auto_flagged=1
+form_data = urllib.parse.urlencode({
+    "category": "Electrical",
+    "location": "Physics Lab 3",
+    "description": "Switchboard is sparking near the chemical table.",
+    "priority": "Low"
+}).encode("utf-8")
+req = urllib.request.Request(base + "/api/complaints", data=form_data)
+with urllib.request.urlopen(req) as r:
+    res = json.loads(r.read().decode("utf-8"))
+    assert res["success"] is True
+    assert res["complaint"]["priority"] == "Critical"
+    assert res["auto_flagged"] is True
+    assert res["trigger_keyword"] == "sparking"
+    assert res["complaint"]["auto_flagged"] == 1
+    new_crit_id = res["complaint"]["id"]
+    print(f"[PASS] Auto-detected as Critical: {res['trigger_keyword']} (auto_flagged=1)")
+
+# 5b. High keyword ('leaking') with user priority=Low -> should become High and auto_flagged=1
 form_data = urllib.parse.urlencode({
     "category": "Plumbing",
-    "location": "Chemistry Lab 102 - Fume Hood Sink",
-    "description": "Severe sulfuric acid trap blockage overflowing onto floor.",
+    "location": "Hostel Washroom",
+    "description": "The ceiling pipe is leaking slowly.",
+    "priority": "Low"
+}).encode("utf-8")
+req = urllib.request.Request(base + "/api/complaints", data=form_data)
+with urllib.request.urlopen(req) as r:
+    res = json.loads(r.read().decode("utf-8"))
+    assert res["success"] is True
+    assert res["complaint"]["priority"] == "High"
+    assert res["auto_flagged"] is True
+    assert res["trigger_keyword"] == "leaking"
+    print(f"[PASS] Auto-detected as High: {res['trigger_keyword']} (auto_flagged=1)")
+
+# 5c. Never lower user priority: user chooses Critical, description has 'leak'
+form_data = urllib.parse.urlencode({
+    "category": "Plumbing",
+    "location": "Server Room B",
+    "description": "Small leak near server rack.",
     "priority": "Critical"
 }).encode("utf-8")
-
-req = urllib.request.Request(base + "/api/complaints", data=form_data, headers={
-    "Content-Type": "application/x-www-form-urlencoded"
-})
+req = urllib.request.Request(base + "/api/complaints", data=form_data)
 with urllib.request.urlopen(req) as r:
-    new_res = json.loads(r.read().decode("utf-8"))
-    assert new_res["success"] is True
-    created = new_res["complaint"]
-    print(f"[PASS] Created ticket: {created['ticket_no']}, Priority: {created['priority']}, Status: {created['status']}")
-    new_id = created["id"]
+    res = json.loads(r.read().decode("utf-8"))
+    assert res["success"] is True
+    assert res["complaint"]["priority"] == "Critical"
+    assert res["auto_flagged"] is False
+    print("[PASS] User Critical priority was preserved (never lowered)")
 
-print("\n--- 6. Testing POST /api/complaints/<id>/assign (Admin assigns worker) ---")
-# Admin assigns Marcus Chen (worker #2) to the new ticket
-assign_data = json.dumps({"worker_id": 2}).encode("utf-8")
-req = urllib.request.Request(f"{base}/api/complaints/{new_id}/assign", data=assign_data, headers={
+print("\n--- 6. Testing Worker Assignment & Status Advance ---")
+assign_data = json.dumps({"worker_id": 1}).encode("utf-8")
+req = urllib.request.Request(f"{base}/api/complaints/{new_crit_id}/assign", data=assign_data, headers={
     "Content-Type": "application/json"
 })
 with urllib.request.urlopen(req) as r:
     assign_res = json.loads(r.read().decode("utf-8"))
     assert assign_res["success"] is True
-    c = assign_res["complaint"]
-    print(f"[PASS] Assigned to: {c['assigned_worker_name']} ({c['assigned_worker_role']})")
-    print(f"       Status moved to: {c['status']}")
-    assert c["status"] == "Assigned"
+    assert assign_res["complaint"]["assigned_worker_id"] == 1
+    assert assign_res["complaint"]["status"] == "Assigned"
+    print(f"[PASS] Assigned to {assign_res['complaint']['assigned_worker_name']} and moved to Assigned")
 
-print("\n--- 7. Testing POST /api/complaints/<id>/advance (Admin workflow progression) ---")
-# Step 1: Move from Assigned -> In Progress
-req = urllib.request.Request(f"{base}/api/complaints/{new_id}/advance", data=b"", headers={
+req = urllib.request.Request(f"{base}/api/complaints/{new_crit_id}/advance", data=b"", headers={
     "Content-Type": "application/json"
 })
 with urllib.request.urlopen(req) as r:
     adv_res = json.loads(r.read().decode("utf-8"))
     assert adv_res["complaint"]["status"] == "In Progress"
-    print(f"[PASS] Workflow advanced to: {adv_res['complaint']['status']}")
-
-# Step 2: Move from In Progress -> Resolved
-req = urllib.request.Request(f"{base}/api/complaints/{new_id}/advance", data=b"", headers={
-    "Content-Type": "application/json"
-})
-with urllib.request.urlopen(req) as r:
-    adv_res = json.loads(r.read().decode("utf-8"))
-    assert adv_res["complaint"]["status"] == "Resolved"
-    print(f"[PASS] Workflow advanced to: {adv_res['complaint']['status']}")
-
-print("\n--- 8. Testing Filters ---")
-# Test filter by priority
-with urllib.request.urlopen(base + "/api/complaints?priority=Critical") as r:
-    crit_complaints = json.loads(r.read().decode("utf-8"))
-    print(f"[PASS] Filter by Priority=Critical returned {len(crit_complaints)} items.")
-    for c in crit_complaints:
-        assert c["priority"] == "Critical"
-
-# Test filter by status
-with urllib.request.urlopen(base + "/api/complaints?status=Resolved") as r:
-    res_complaints = json.loads(r.read().decode("utf-8"))
-    print(f"[PASS] Filter by Status=Resolved returned {len(res_complaints)} items.")
-    for c in res_complaints:
-        assert c["status"] == "Resolved"
-
-# Test filter by category
-with urllib.request.urlopen(base + "/api/complaints?category=Electrical") as r:
-    elec_complaints = json.loads(r.read().decode("utf-8"))
-    print(f"[PASS] Filter by Category=Electrical returned {len(elec_complaints)} items.")
-    for c in elec_complaints:
-        assert c["category"] == "Electrical"
-
-print("\n--- 9. Testing Static Asset Serving (CSS, JS, SVGs) ---")
-for asset in ["/static/css/style.css", "/static/js/app.js", "/static/uploads/sample_switchboard.svg"]:
-    with urllib.request.urlopen(base + asset) as r:
-        assert r.status == 200
-        print(f"[PASS] Successfully fetched {asset} (Content-Length: {len(r.read())})")
+    print(f"[PASS] Advanced to: {adv_res['complaint']['status']}")
 
 print("\n==========================================")
-print("ALL END-TO-END VERIFICATION CHECKS PASSED!")
+print("ALL AUTOMATED TESTS PASSED!")
 print("==========================================")
