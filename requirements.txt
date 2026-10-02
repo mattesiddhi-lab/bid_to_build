@@ -1,2 +1,1 @@
-fastapi
-uvicorn
+Flask>=3.0.0

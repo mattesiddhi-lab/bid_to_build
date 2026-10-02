@@ -8,8 +8,10 @@ build/
 __pycache__/
 *.pyc
 venv/
+.venv/
 .env
 
 # OS / Editor junk
 .DS_Store
 .vscode/
+maintenance.db

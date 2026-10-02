@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="100%" height="100%">
+  <defs>
+    <linearGradient id="wall" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334155" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+    <radialGradient id="spark" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="50%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#ef4444" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="600" height="400" fill="url(#wall)" />
+  <rect x="220" y="100" width="160" height="200" rx="8" fill="#e2e8f0" stroke="#94a3b8" stroke-width="4" />
+  <rect x="250" y="130" width="40" height="60" rx="4" fill="#cbd5e1" stroke="#64748b" stroke-width="2" />
+  <rect x="310" y="130" width="40" height="60" rx="4" fill="#cbd5e1" stroke="#64748b" stroke-width="2" />
+  <rect x="250" y="210" width="40" height="60" rx="4" fill="#1e293b" stroke="#0f172a" stroke-width="2" />
+  <rect x="310" y="210" width="40" height="60" rx="4" fill="#cbd5e1" stroke="#64748b" stroke-width="2" />
+  <!-- Spark & Burn Marks -->
+  <path d="M 235 220 Q 245 235 238 250 Q 248 260 240 275" stroke="#451a03" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.6"/>
+  <circle cx="250" cy="240" r="45" fill="url(#spark)" />
+  <polygon points="250,215 258,235 275,232 260,245 268,265 248,250 235,260 242,240 225,235 245,230" fill="#facc15" stroke="#ef4444" stroke-width="1.5" />
+  <text x="300" y="340" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="16" font-weight="600" text-anchor="middle">Science Block 304 - Sparking Switchboard</text>
+</svg>

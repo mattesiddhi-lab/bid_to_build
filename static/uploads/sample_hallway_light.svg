@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="100%" height="100%">
+  <defs>
+    <linearGradient id="hall" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+  </defs>
+  <rect width="600" height="400" fill="url(#hall)" />
+  <!-- Ceiling fixture broken -->
+  <rect x="180" y="50" width="240" height="24" rx="4" fill="#334155" />
+  <!-- Hanging bulb fixture hanging on wire -->
+  <line x1="250" y1="74" x2="270" y2="150" stroke="#000000" stroke-width="3" />
+  <circle cx="270" cy="165" r="16" fill="#1e293b" stroke="#475569" stroke-width="2" />
+  <!-- Danger warning sign -->
+  <polygon points="300,210 240,320 360,320" fill="#facc15" stroke="#ca8a04" stroke-width="4" />
+  <text x="300" y="295" fill="#000000" font-family="system-ui, sans-serif" font-size="40" font-weight="900" text-anchor="middle">!</text>
+  <text x="300" y="360" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="16" font-weight="600" text-anchor="middle">Hostel A - 4th Floor Stairwell Blackout</text>
+</svg>
