@@ -3,8 +3,15 @@
  */
 
 // Application State
+const userRoleFromDom = document.body.getAttribute('data-user-role') || 'user';
+const userNameFromDom = document.body.getAttribute('data-user-name') || '';
+
 const state = {
-  currentRole: localStorage.getItem('campusfix_role') || 'user', // 'user' or 'admin'
+  currentRole: userRoleFromDom, // 'user' or 'admin'
+  currentUser: {
+    name: userNameFromDom,
+    role: userRoleFromDom
+  },
   workers: [],
   workload: [],
   problemAreas: [],
@@ -26,8 +33,6 @@ const state = {
 };
 
 // DOM Elements
-const userRoleBtn = document.getElementById('userRoleBtn');
-const adminRoleBtn = document.getElementById('adminRoleBtn');
 const roleBanner = document.getElementById('roleBanner');
 const bannerIcon = document.getElementById('bannerIcon');
 const bannerText = document.getElementById('bannerText');
@@ -78,41 +83,40 @@ const toastContainer = document.getElementById('toastContainer');
 document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
   applyRole(state.currentRole);
-  await loadWorkload();
-  await loadLocationSummary();
+  if (state.currentRole === 'admin') {
+    await loadWorkload();
+    await loadLocationSummary();
+  }
   await loadStats();
   await loadComplaints();
 });
 
 // ==========================================================================
-// Role Switching
+// Role Application
 // ==========================================================================
-function setRole(role) {
-  state.currentRole = role;
-  localStorage.setItem('campusfix_role', role);
-  applyRole(role);
-  renderComplaints();
-}
-
 function applyRole(role) {
   if (role === 'admin') {
     document.body.classList.remove('mode-user');
     document.body.classList.add('mode-admin');
-    adminRoleBtn.classList.add('active');
-    userRoleBtn.classList.remove('active');
 
-    roleBanner.className = 'role-banner admin-banner';
-    bannerIcon.textContent = '🛡️';
-    bannerText.innerHTML = '<strong>Admin Mode Active:</strong> You can assign complaints to maintenance workers, advance ticket statuses, and monitor facility metrics.';
+    if (roleBanner) {
+      roleBanner.className = 'role-banner admin-banner';
+      if (bannerIcon) bannerIcon.textContent = '🛡️';
+      if (bannerText) {
+        bannerText.innerHTML = '<strong>Admin Mode Active:</strong> You can assign complaints to maintenance workers, advance ticket statuses, and monitor facility metrics.';
+      }
+    }
   } else {
     document.body.classList.remove('mode-admin');
     document.body.classList.add('mode-user');
-    userRoleBtn.classList.add('active');
-    adminRoleBtn.classList.remove('active');
 
-    roleBanner.className = 'role-banner user-banner';
-    bannerIcon.textContent = '👤';
-    bannerText.innerHTML = '<strong>Resident / User Mode:</strong> Report new maintenance issues and view current repair statuses across campus.';
+    if (roleBanner) {
+      roleBanner.className = 'role-banner user-banner';
+      if (bannerIcon) bannerIcon.textContent = '👤';
+      if (bannerText) {
+        bannerText.innerHTML = '<strong>Resident / User Mode:</strong> Report new maintenance issues and view live repair statuses across campus.';
+      }
+    }
   }
 }
 
@@ -476,7 +480,8 @@ function renderComplaints() {
               : `<span class="worker-unassigned">Not assigned</span>`}
           </div>
 
-          <div>
+          <div style="display: flex; align-items: center; gap: 0.85rem; flex-wrap: wrap;">
+            <span class="reported-by-tag">👤 Reported by: <span class="reporter-name">${escapeHtml(item.reported_by || 'Student Resident')}</span></span>
             ${photoMarkup}
           </div>
         </div>
@@ -529,8 +534,10 @@ async function assignWorker(complaintId) {
     const data = await res.json();
     if (res.ok && data.success) {
       showToast(`Assigned to ${data.complaint.assigned_worker_name}. Status: ${data.complaint.status}`, 'success');
-      await loadWorkload();
-      await loadLocationSummary();
+      if (state.currentRole === 'admin') {
+        await loadWorkload();
+        await loadLocationSummary();
+      }
       await loadStats();
       await loadComplaints();
     } else {
@@ -552,8 +559,10 @@ async function advanceStatus(complaintId) {
     const data = await res.json();
     if (res.ok && data.success) {
       showToast(`Status updated to: ${data.complaint.status}`, 'success');
-      await loadWorkload();
-      await loadLocationSummary();
+      if (state.currentRole === 'admin') {
+        await loadWorkload();
+        await loadLocationSummary();
+      }
       await loadStats();
       await loadComplaints();
     } else {
@@ -595,8 +604,10 @@ complaintForm.addEventListener('submit', async (e) => {
       const lowRadio = complaintForm.querySelector('input[name="priority"][value="Low"]');
       if (lowRadio) lowRadio.checked = true;
 
-      await loadWorkload();
-      await loadLocationSummary();
+      if (state.currentRole === 'admin') {
+        await loadWorkload();
+        await loadLocationSummary();
+      }
       await loadStats();
       await loadComplaints();
     } else {
@@ -757,9 +768,6 @@ historyModal.addEventListener('click', (e) => {
 // Filters & Interactive Dashboard Stat Cards
 // ==========================================================================
 function setupEventListeners() {
-  userRoleBtn.addEventListener('click', () => setRole('user'));
-  adminRoleBtn.addEventListener('click', () => setRole('admin'));
-
   filterStatus.addEventListener('change', () => {
     state.filters.status = filterStatus.value;
     updateActiveStatCard();
@@ -803,7 +811,9 @@ function setupEventListeners() {
       activeLocationFilterChip.classList.add('hidden');
     }
 
-    renderLocationSummary();
+    if (state.currentRole === 'admin') {
+      renderLocationSummary();
+    }
     updateActiveStatCard();
     loadComplaints();
   });
@@ -813,8 +823,10 @@ function setupEventListeners() {
   }
 
   refreshStatsBtn.addEventListener('click', async () => {
-    await loadWorkload();
-    await loadLocationSummary();
+    if (state.currentRole === 'admin') {
+      await loadWorkload();
+      await loadLocationSummary();
+    }
     await loadStats();
     await loadComplaints();
     showToast('Refreshed data from server.', 'success');

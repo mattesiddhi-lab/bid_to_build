@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
+<body class="mode-{{ user.role if user else 'user' }}" data-user-role="{{ user.role if user else 'user' }}" data-user-name="{{ user.name if user else '' }}">
   <!-- Top Navigation Header -->
   <header class="app-header">
     <div class="header-container">
@@ -21,26 +21,30 @@
         </div>
       </div>
 
-      <!-- Role Switcher -->
-      <div class="role-switcher-wrapper">
-        <span class="role-label">Active Role:</span>
-        <div class="role-toggle-group" id="roleToggleGroup">
-          <button type="button" class="role-btn active" id="userRoleBtn" data-role="user">
-            <span class="role-icon">👤</span> Resident / User
-          </button>
-          <button type="button" class="role-btn" id="adminRoleBtn" data-role="admin">
-            <span class="role-icon">🛡️</span> Maintenance Admin
-          </button>
+      <!-- User Profile & Logout (Rule 7) -->
+      <div class="user-nav-wrapper">
+        <div class="user-greeting" id="userGreeting">
+          <span class="user-avatar-icon">{% if user and user.role == 'admin' %}🛡️{% else %}👤{% endif %}</span>
+          <span class="user-greeting-text">Hi, <strong id="currentUserName">{{ user.name if user else 'Resident' }}</strong> (<span id="currentUserRoleLabel">{{ 'Admin' if user and user.role == 'admin' else 'User' }}</span>)</span>
         </div>
+        <a href="/logout" class="btn btn-outline btn-sm btn-logout" id="logoutBtn" title="Log out">
+          Sign Out ➔
+        </a>
       </div>
     </div>
   </header>
 
-  <!-- Role Notification Banner -->
-  <div class="role-banner user-banner" id="roleBanner">
+  <!-- User Info Banner -->
+  <div class="role-banner {% if user and user.role == 'admin' %}admin-banner{% else %}user-banner{% endif %}" id="roleBanner">
     <div class="banner-inner">
-      <span class="banner-icon" id="bannerIcon">ℹ️</span>
-      <span id="bannerText"><strong>Resident Mode:</strong> Submit new maintenance requests and check the status of campus repairs.</span>
+      <span class="banner-icon" id="bannerIcon">{% if user and user.role == 'admin' %}🛡️{% else %}👤{% endif %}</span>
+      <span id="bannerText">
+        {% if user and user.role == 'admin' %}
+        <strong>Admin Mode:</strong> You can assign work orders, update repair statuses, and monitor campus metrics.
+        {% else %}
+        <strong>User Mode:</strong> Submit new maintenance requests and track live repair statuses across campus.
+        {% endif %}
+      </span>
     </div>
   </div>
 

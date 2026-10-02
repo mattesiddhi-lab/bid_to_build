@@ -5,35 +5,48 @@ A lightweight, modern web application for college and campus maintenance teams t
 ---
 
 ## Tech Stack
-- **Backend:** Python (Flask 3.x)
+- **Backend:** Python (Flask 3.x with Flask Sessions & Werkzeug Password Security)
 - **Database:** SQLite (`maintenance.db`)
 - **Frontend:** Plain HTML5, Modern Vanilla CSS, Plain JavaScript (no frontend build tools or frameworks required)
 
 ---
 
-## Features (MVP)
-1. **Complaint Filing Form:**
+## Seeded Login Credentials
+
+The application includes two pre-seeded accounts:
+
+| Role | Username | Password | Access Level |
+|---|---|---|---|
+| **Maintenance Admin** | `admin` | `admin123` | Full triage, worker assignment, status progression, workload metrics & problem areas |
+| **Student Resident** | `student` | `student123` | Report complaints, upload photos, view live status and track complaints |
+
+> You can also register a new account on `/register` (new accounts are assigned the `User` role).
+
+---
+
+## Features
+1. **Authentication & Role-Based Access Control (RBAC):**
+   - Secure Flask session management with werkzeug password hashing.
+   - Server-enforced permissions for all administrative endpoints.
+   - User registration at `/register` and login at `/login`.
+2. **Complaint Filing Form:**
    - **Categories:** Electrical, Plumbing, Furniture, Cleaning, Other
-   - **Priority Levels:** Low, Medium, High, Critical
+   - **Priority Levels:** Low, Medium, High, Critical (with auto-priority detection)
    - **Location:** Specific room, wing, or campus area
    - **Description:** Problem details
    - **Photo Upload:** Drag-and-drop or file selector with instant preview
-2. **Priority Badges:**
-   - **Critical** = Bright Red badge with pulse indicator
-   - **High** = Orange badge
-   - **Medium** = Blue badge
-   - **Low** = Green badge
-3. **Role Switcher (User / Admin):**
-   - Toggle between **Resident / User** mode and **Maintenance Admin** mode directly from the top header (no login required).
+   - **Reported By:** Tracks author name on each ticket
+3. **Smart Priority & Recurrence Flags:**
+   - **Auto-flagged:** Automatically detects emergency keywords (fire, sparking, burst pipe, etc.) and raises ticket priority.
+   - **Recurring Issues:** Highlights recurring complaints at the same location and category with a history viewer for admins.
 4. **Maintenance Dashboard:**
    - Real-time count cards by **Status** (`Reported`, `Assigned`, `In Progress`, `Resolved`).
    - Real-time count cards by **Priority** (`Critical`, `High`, `Medium`, `Low`).
-   - Clickable metric cards to instantly filter tickets.
-5. **Worker Assignment & Status Workflow:**
-   - Admin can assign any ticket to a maintenance worker.
+   - **Worker Workload:** Live capacity tracking across maintenance specialists.
+   - **Problem Areas:** Ranked top 6 complaint hotspot locations with filter chips.
+5. **Worker Assignment & Status Workflow (Admin Only):**
+   - Admins can assign tickets to workers (sorted least-loaded first).
    - Status workflow progression: `Reported` ➔ `Assigned` ➔ `In Progress` ➔ `Resolved`.
-6. **Automatic Seeding:**
-   - Seeds **4 maintenance specialists** and **20 sample campus complaints** on first startup.
 
 ---
 
@@ -41,18 +54,20 @@ A lightweight, modern web application for college and campus maintenance teams t
 
 ```text
 bid_to_build/
-├── app.py                  # Flask backend, SQLite schema, REST endpoints & seeder
+├── app.py                  # Flask backend, SQLite schema, auth, sessions & REST endpoints
 ├── requirements.txt        # Flask dependency
 ├── maintenance.db          # SQLite database (auto-generated & seeded on first run)
 ├── run.bat                 # One-click launch script for Windows
 ├── run.ps1                 # PowerShell launch script
 ├── templates/
-│   └── index.html          # Single-page responsive HTML template
+│   ├── index.html          # Main application responsive HTML template
+│   ├── login.html          # Authentication login template with demo shortcuts
+│   └── register.html       # User registration template
 ├── static/
 │   ├── css/
 │   │   └── style.css       # Clean, modern CSS styles & colored badges
 │   ├── js/
-│   │   └── app.js          # Role toggle, AJAX calls, filters, workflow transitions
+│   │   └── app.js          # Client-side UI interactions, AJAX calls, filters
 │   └── uploads/            # Uploaded photos and sample ticket SVGs
 └── README.md               # Setup and usage guide
 ```
@@ -113,17 +128,17 @@ http://127.0.0.1:5000
 
 ## How to Use the App
 
-1. **Switch Roles:**
-   - Click **"👤 Resident / User"** at the top right to file complaints as a student or staff member.
-   - Click **"🛡️ Maintenance Admin"** to access the maintenance dashboard, assign tickets to workers, and move tickets forward through the workflow.
-2. **Submit a Complaint (User Mode):**
-   - Choose a Category (e.g. *Electrical*), Priority (e.g. *Critical*), enter Location (e.g. *Science Block 304*), Description, and optional Photo.
-   - Click **Submit Maintenance Ticket**.
-3. **Assign and Move Tickets (Admin Mode):**
-   - Use the **"Select worker to assign..."** dropdown on any complaint card.
-   - Click **"Assign"** to dispatch the worker.
-   - Click **"Start Work (In Progress) ➔"** to mark work actively underway.
-   - Click **"Mark Resolved ✓"** when repairs are complete.
-4. **Interactive Dashboard:**
-   - Click on any status card (e.g., *Reported (6)*) or priority card (e.g., *Critical (5)*) to filter the complaints view.
-   - Click **"Reset Filters"** to view all tickets.
+1. **Log In:**
+   - Navigate to `http://127.0.0.1:5000/login`.
+   - Click **"Login as Student"** or **"Login as Admin"** for instant 1-click demo access, or enter your credentials.
+2. **Submit a Complaint (User):**
+   - Choose a Category, Priority, Location, Description, and optional Photo.
+   - Click **Submit Maintenance Ticket**. The ticket records your name as the reporter.
+3. **Manage Tickets (Admin):**
+   - Use the **"Select worker to assign..."** dropdown on any complaint card to dispatch a technician.
+   - Click **"Start Work (In Progress) ➔"** when repairs begin.
+   - Click **"Mark Resolved ✓"** when completed.
+4. **Interactive Dashboard & Problem Areas:**
+   - Click on any status card or priority card to filter tickets.
+   - In Admin mode, view **Worker Workloads** and click any **Problem Area** row to filter by location.
+   - Click **"Sign Out"** in the top navigation bar to log out.

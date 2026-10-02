@@ -3,7 +3,18 @@ import re
 import sqlite3
 import uuid
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from functools import wraps
+from flask import (
+    Flask,
+    render_template,
+    request,
+    jsonify,
+    redirect,
+    url_for,
+    session,
+    send_from_directory,
+)
+from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -48,6 +59,7 @@ HIGH_KEYWORDS = [
 ]
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "campusfix-secure-secret-key-2026-prod")
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max upload
 
@@ -130,9 +142,61 @@ def get_recurrence_info(cursor):
     return info_map
 
 
+def get_current_user():
+    if "user_id" not in session:
+        return None
+    return {
+        "id": session.get("user_id"),
+        "name": session.get("name"),
+        "username": session.get("username"),
+        "role": session.get("role"),
+    }
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session:
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "Authentication required"}), 401
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session:
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "Authentication required"}), 401
+            return redirect(url_for("login"))
+        if session.get("role") != "admin":
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "Admin access required"}), 403
+            return redirect(url_for("index"))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 def init_db(seed_if_empty=True):
     with get_db() as conn:
         cursor = conn.cursor()
+
+        # Users table (Rule 2)
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL CHECK(role IN ('user', 'admin'))
+            );
+        """
+        )
+
+        # Workers table
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS workers (
@@ -144,6 +208,7 @@ def init_db(seed_if_empty=True):
         """
         )
 
+        # Complaints table
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS complaints (
@@ -157,6 +222,7 @@ def init_db(seed_if_empty=True):
                 assigned_worker_id INTEGER,
                 photo_filename TEXT,
                 auto_flagged INTEGER DEFAULT 0,
+                reported_by TEXT DEFAULT 'Student Resident',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 FOREIGN KEY (assigned_worker_id) REFERENCES workers(id)
@@ -164,12 +230,16 @@ def init_db(seed_if_empty=True):
         """
         )
 
-        # Handle existing database safely: add column if missing without deleting data
+        # Handle existing database safely: add columns if missing without deleting data
         cursor.execute("PRAGMA table_info(complaints)")
         columns = [row["name"] for row in cursor.fetchall()]
         if "auto_flagged" not in columns:
             cursor.execute(
                 "ALTER TABLE complaints ADD COLUMN auto_flagged INTEGER DEFAULT 0"
+            )
+        if "reported_by" not in columns:
+            cursor.execute(
+                "ALTER TABLE complaints ADD COLUMN reported_by TEXT DEFAULT 'Student Resident'"
             )
 
         conn.commit()
@@ -180,9 +250,21 @@ def init_db(seed_if_empty=True):
 
 def seed_data(conn):
     cursor = conn.cursor()
+
+    # Seed users (Rule 3)
+    sample_users = [
+        ("Maintenance Admin", "admin", generate_password_hash("admin123"), "admin"),
+        ("Student Resident", "student", generate_password_hash("student123"), "user"),
+    ]
+    cursor.executemany(
+        "INSERT OR IGNORE INTO users (name, username, password_hash, role) VALUES (?, ?, ?, ?)",
+        sample_users,
+    )
+    conn.commit()
+
+    # Seed workers
     cursor.execute("SELECT COUNT(*) FROM workers")
     worker_count = cursor.fetchone()[0]
-
     if worker_count == 0:
         sample_workers = [
             ("Rajesh Sharma", "Electrical Specialist", "+91 98765-10001"),
@@ -196,6 +278,7 @@ def seed_data(conn):
         )
         conn.commit()
 
+    # Seed complaints
     cursor.execute("SELECT COUNT(*) FROM complaints")
     complaint_count = cursor.fetchone()[0]
 
@@ -213,6 +296,7 @@ def seed_data(conn):
                 2,  # Marcus Chen
                 None,
                 0,
+                "Student Resident",
                 "2026-09-24 10:00:00",
                 "2026-09-25 12:00:00",
             ),
@@ -226,6 +310,7 @@ def seed_data(conn):
                 2,  # Marcus Chen
                 None,
                 0,
+                "Alex Student",
                 "2026-09-28 15:30:00",
                 "2026-09-29 11:00:00",
             ),
@@ -239,6 +324,7 @@ def seed_data(conn):
                 2,  # Marcus Chen
                 "sample_water_leak.svg",
                 0,
+                "Rahul Verma",
                 "2026-10-01 14:15:00",
                 "2026-10-02 09:00:00",
             ),
@@ -252,6 +338,7 @@ def seed_data(conn):
                 2,  # Marcus Chen
                 None,
                 0,
+                "Priya Sharma",
                 "2026-10-02 07:30:00",
                 "2026-10-02 08:30:00",
             ),
@@ -266,6 +353,7 @@ def seed_data(conn):
                 1,  # Rajesh Sharma
                 None,
                 0,
+                "Dr. Alok Nath",
                 "2026-09-27 14:00:00",
                 "2026-09-28 10:00:00",
             ),
@@ -279,6 +367,7 @@ def seed_data(conn):
                 1,  # Rajesh Sharma
                 "sample_switchboard.svg",
                 0,
+                "Lab Tech Neha",
                 "2026-10-02 08:30:00",
                 "2026-10-02 08:30:00",
             ),
@@ -292,6 +381,7 @@ def seed_data(conn):
                 1,  # Rajesh Sharma
                 None,
                 0,
+                "Student Resident",
                 "2026-10-02 09:00:00",
                 "2026-10-02 09:15:00",
             ),
@@ -306,6 +396,7 @@ def seed_data(conn):
                 4,  # Sarah Jenkins
                 None,
                 0,
+                "Cafeteria Lead",
                 "2026-09-29 09:30:00",
                 "2026-09-30 08:00:00",
             ),
@@ -319,6 +410,7 @@ def seed_data(conn):
                 4,  # Sarah Jenkins
                 None,
                 0,
+                "Student Council",
                 "2026-10-02 07:45:00",
                 "2026-10-02 08:15:00",
             ),
@@ -332,6 +424,7 @@ def seed_data(conn):
                 None,
                 None,
                 0,
+                "Alex Student",
                 "2026-10-02 08:50:00",
                 "2026-10-02 08:50:00",
             ),
@@ -346,6 +439,7 @@ def seed_data(conn):
                 1,  # Rajesh Sharma
                 None,
                 0,
+                "Prof. Arvind",
                 "2026-10-02 08:00:00",
                 "2026-10-02 08:45:00",
             ),
@@ -359,6 +453,7 @@ def seed_data(conn):
                 1,  # Rajesh Sharma
                 None,
                 0,
+                "SysAdmin Roy",
                 "2026-10-02 08:15:00",
                 "2026-10-02 08:45:00",
             ),
@@ -373,6 +468,7 @@ def seed_data(conn):
                 1,  # Rajesh Sharma
                 None,
                 0,
+                "Librarian Gupta",
                 "2026-09-30 10:10:00",
                 "2026-10-01 12:00:00",
             ),
@@ -386,6 +482,7 @@ def seed_data(conn):
                 3,  # David Miller
                 None,
                 0,
+                "Student Resident",
                 "2026-09-28 14:00:00",
                 "2026-09-29 16:00:00",
             ),
@@ -400,6 +497,7 @@ def seed_data(conn):
                 3,  # David Miller
                 "sample_broken_seat.svg",
                 0,
+                "Event Coordinator",
                 "2026-10-01 11:20:00",
                 "2026-10-01 16:00:00",
             ),
@@ -413,6 +511,7 @@ def seed_data(conn):
                 3,  # David Miller
                 None,
                 0,
+                "Student Resident",
                 "2026-10-02 09:10:00",
                 "2026-10-02 09:30:00",
             ),
@@ -427,6 +526,7 @@ def seed_data(conn):
                 None,
                 None,
                 0,
+                "Alex Student",
                 "2026-10-02 09:10:00",
                 "2026-10-02 09:30:00",
             ),
@@ -440,6 +540,7 @@ def seed_data(conn):
                 4,  # Sarah Jenkins
                 None,
                 0,
+                "Coach Vikram",
                 "2026-09-29 18:00:00",
                 "2026-09-30 08:30:00",
             ),
@@ -453,6 +554,7 @@ def seed_data(conn):
                 None,
                 None,
                 0,
+                "Security Officer",
                 "2026-10-01 09:00:00",
                 "2026-10-01 11:30:00",
             ),
@@ -466,6 +568,7 @@ def seed_data(conn):
                 None,
                 None,
                 0,
+                "Dr. Alok Nath",
                 "2026-10-02 09:40:00",
                 "2026-10-02 09:40:00",
             ),
@@ -475,20 +578,168 @@ def seed_data(conn):
             """
             INSERT INTO complaints (
                 ticket_no, category, location, description, priority, status,
-                assigned_worker_id, photo_filename, auto_flagged, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                assigned_worker_id, photo_filename, auto_flagged, reported_by, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             sample_complaints,
         )
         conn.commit()
 
 
+# =============================================================================
+# Authentication Routes (Rules 4, 5, 6, 7)
+# =============================================================================
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        # Handle both form and JSON
+        if request.is_json:
+            data = request.get_json() or {}
+            username = (data.get("username") or "").strip()
+            password = (data.get("password") or "").strip()
+        else:
+            username = request.form.get("username", "").strip()
+            password = request.form.get("password", "").strip()
+
+        if not username or not password:
+            if request.is_json:
+                return jsonify({"error": "Please provide both username and password."}), 400
+            return render_template(
+                "login.html",
+                error="Please provide both username and password.",
+                username=username,
+            ), 400
+
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id, name, username, password_hash, role FROM users WHERE LOWER(username) = LOWER(?)",
+                (username,),
+            )
+            user = cursor.fetchone()
+
+        if user and check_password_hash(user["password_hash"], password):
+            session.clear()
+            session["user_id"] = user["id"]
+            session["name"] = user["name"]
+            session["username"] = user["username"]
+            session["role"] = user["role"]
+
+            if request.is_json:
+                return jsonify({"success": True, "redirect": "/"})
+            return redirect(url_for("index"))
+        else:
+            if request.is_json:
+                return jsonify({"error": "Invalid username or password."}), 401
+            return render_template(
+                "login.html",
+                error="Invalid username or password.",
+                username=username,
+            ), 401
+
+    if "user_id" in session:
+        return redirect(url_for("index"))
+    return render_template("login.html")
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        if request.is_json:
+            data = request.get_json() or {}
+            name = (data.get("name") or "").strip()
+            username = (data.get("username") or "").strip()
+            password = (data.get("password") or "").strip()
+        else:
+            name = request.form.get("name", "").strip()
+            username = request.form.get("username", "").strip()
+            password = request.form.get("password", "").strip()
+
+        if not name or not username or not password:
+            err = "All fields (Name, Username, Password) are required."
+            if request.is_json:
+                return jsonify({"error": err}), 400
+            return render_template("register.html", error=err, name=name, username=username), 400
+
+        if len(username) < 3:
+            err = "Username must be at least 3 characters long."
+            if request.is_json:
+                return jsonify({"error": err}), 400
+            return render_template("register.html", error=err, name=name, username=username), 400
+
+        if len(password) < 4:
+            err = "Password must be at least 4 characters long."
+            if request.is_json:
+                return jsonify({"error": err}), 400
+            return render_template("register.html", error=err, name=name, username=username), 400
+
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id FROM users WHERE LOWER(username) = LOWER(?)",
+                (username,),
+            )
+            existing = cursor.fetchone()
+            if existing:
+                err = "Username is already taken. Please choose another."
+                if request.is_json:
+                    return jsonify({"error": err}), 400
+                return render_template("register.html", error=err, name=name, username=username), 400
+
+            # Rule 5: role is ALWAYS 'user', never admin
+            password_hash = generate_password_hash(password)
+            cursor.execute(
+                "INSERT INTO users (name, username, password_hash, role) VALUES (?, ?, ?, 'user')",
+                (name, username, password_hash),
+            )
+            new_id = cursor.lastrowid
+            conn.commit()
+
+        # Log in newly registered user
+        session.clear()
+        session["user_id"] = new_id
+        session["name"] = name
+        session["username"] = username
+        session["role"] = "user"
+
+        if request.is_json:
+            return jsonify({"success": True, "redirect": "/"}), 201
+        return redirect(url_for("index"))
+
+    if "user_id" in session:
+        return redirect(url_for("index"))
+    return render_template("register.html")
+
+
+@app.route("/logout", methods=["GET", "POST"])
+def logout():
+    session.clear()
+    if request.is_json:
+        return jsonify({"success": True, "redirect": "/login"})
+    return redirect(url_for("login"))
+
+
+@app.route("/api/me", methods=["GET"])
+def api_me():
+    user = get_current_user()
+    if not user:
+        return jsonify({"logged_in": False, "error": "Not authenticated"}), 401
+    return jsonify({"logged_in": True, "user": user})
+
+
+# =============================================================================
+# Main Application & API Endpoints (Role-enforced on SERVER)
+# =============================================================================
+
 @app.route("/")
+@login_required
 def index():
-    return render_template("index.html")
+    return render_template("index.html", user=get_current_user())
 
 
 @app.route("/api/workers", methods=["GET"])
+@login_required
 def get_workers():
     with get_db() as conn:
         cursor = conn.cursor()
@@ -498,6 +749,7 @@ def get_workers():
 
 
 @app.route("/api/workload", methods=["GET"])
+@admin_required
 def get_workload():
     with get_db() as conn:
         cursor = conn.cursor()
@@ -532,19 +784,8 @@ def get_workload():
 
 
 @app.route("/api/location-summary", methods=["GET"])
+@admin_required
 def get_location_summary():
-    """
-    Groups complaints by location (case-insensitive, ignoring extra spaces)
-    and returns top 6 locations with:
-    - location: canonical display name
-    - normalized_location: normalized location string
-    - total_complaints: total complaints count
-    - unresolved_complaints: complaints with status != 'Resolved'
-    - critical_complaints: complaints with priority == 'Critical'
-    - most_common_category: category with most complaints in this location
-    - percentage: relative percentage compared to #1 highest count
-    - is_hotspot: True for rank 1
-    """
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -582,10 +823,8 @@ def get_location_summary():
         cat = row["category"] or "Other"
         g["categories"][cat] = g["categories"].get(cat, 0) + 1
 
-    # Convert groups to list and calculate most common category
     summary_list = []
     for norm_key, data in groups.items():
-        # Find most common category
         best_cat = "Other"
         best_cat_count = -1
         for cat, cnt in data["categories"].items():
@@ -604,13 +843,11 @@ def get_location_summary():
             }
         )
 
-    # Sort by total_complaints DESC, then unresolved_complaints DESC
     summary_list.sort(
         key=lambda x: (x["total_complaints"], x["unresolved_complaints"]),
         reverse=True,
     )
 
-    # Take top 6
     top_6 = summary_list[:6]
     max_count = top_6[0]["total_complaints"] if top_6 else 1
 
@@ -625,6 +862,7 @@ def get_location_summary():
 
 
 @app.route("/api/stats", methods=["GET"])
+@login_required
 def get_stats():
     with get_db() as conn:
         cursor = conn.cursor()
@@ -666,6 +904,7 @@ def get_stats():
 
 
 @app.route("/api/complaints", methods=["GET"])
+@login_required
 def get_complaints():
     status_filter = request.args.get("status")
     priority_filter = request.args.get("priority")
@@ -678,7 +917,7 @@ def get_complaints():
         SELECT 
             c.id, c.ticket_no, c.category, c.location, c.description,
             c.priority, c.status, c.assigned_worker_id, c.photo_filename,
-            c.auto_flagged,
+            c.auto_flagged, c.reported_by,
             c.created_at, c.updated_at,
             w.name AS assigned_worker_name,
             w.role AS assigned_worker_role,
@@ -752,6 +991,7 @@ def get_complaints():
 
 
 @app.route("/api/complaints/<int:complaint_id>/history", methods=["GET"])
+@admin_required
 def get_complaint_history(complaint_id):
     with get_db() as conn:
         cursor = conn.cursor()
@@ -771,7 +1011,7 @@ def get_complaint_history(complaint_id):
             SELECT 
                 c.id, c.ticket_no, c.category, c.location, c.description,
                 c.priority, c.status, c.assigned_worker_id, c.photo_filename,
-                c.auto_flagged, c.created_at, c.updated_at,
+                c.auto_flagged, c.reported_by, c.created_at, c.updated_at,
                 w.name AS assigned_worker_name,
                 w.role AS assigned_worker_role,
                 w.phone AS assigned_worker_phone
@@ -803,6 +1043,7 @@ def get_complaint_history(complaint_id):
 
 
 @app.route("/api/complaints", methods=["POST"])
+@login_required
 def create_complaint():
     category = request.form.get("category", "").strip()
     location = request.form.get("location", "").strip()
@@ -836,6 +1077,9 @@ def create_complaint():
             photo_filename = safe_name
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Rule 9: Save logged in user's name with each complaint
+    current_user = get_current_user()
+    reported_by = current_user["name"] if current_user else "Student Resident"
 
     with get_db() as conn:
         cursor = conn.cursor()
@@ -849,8 +1093,8 @@ def create_complaint():
             """
             INSERT INTO complaints (
                 ticket_no, category, location, description, priority,
-                status, assigned_worker_id, photo_filename, auto_flagged, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, 'Reported', NULL, ?, ?, ?, ?)
+                status, assigned_worker_id, photo_filename, auto_flagged, reported_by, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, 'Reported', NULL, ?, ?, ?, ?, ?)
         """,
             (
                 ticket_no,
@@ -860,6 +1104,7 @@ def create_complaint():
                 final_priority,
                 photo_filename,
                 auto_flagged,
+                reported_by,
                 now,
                 now,
             ),
@@ -873,7 +1118,7 @@ def create_complaint():
             SELECT 
                 c.id, c.ticket_no, c.category, c.location, c.description,
                 c.priority, c.status, c.assigned_worker_id, c.photo_filename,
-                c.auto_flagged,
+                c.auto_flagged, c.reported_by,
                 c.created_at, c.updated_at,
                 w.name AS assigned_worker_name,
                 w.role AS assigned_worker_role
@@ -906,6 +1151,7 @@ def create_complaint():
 
 
 @app.route("/api/complaints/<int:complaint_id>/assign", methods=["POST"])
+@admin_required
 def assign_worker(complaint_id):
     data = request.get_json(silent=True) or {}
     worker_id = data.get("worker_id")
@@ -927,7 +1173,6 @@ def assign_worker(complaint_id):
 
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # If currently 'Reported', assigning a worker advances it to 'Assigned'
         current_status = complaint["status"]
         new_status = "Assigned" if current_status == "Reported" else current_status
 
@@ -947,7 +1192,7 @@ def assign_worker(complaint_id):
             SELECT 
                 c.id, c.ticket_no, c.category, c.location, c.description,
                 c.priority, c.status, c.assigned_worker_id, c.photo_filename,
-                c.auto_flagged,
+                c.auto_flagged, c.reported_by,
                 c.created_at, c.updated_at,
                 w.name AS assigned_worker_name,
                 w.role AS assigned_worker_role,
@@ -971,6 +1216,7 @@ def assign_worker(complaint_id):
 
 
 @app.route("/api/complaints/<int:complaint_id>/advance", methods=["POST"])
+@admin_required
 def advance_status(complaint_id):
     with get_db() as conn:
         cursor = conn.cursor()
@@ -1001,7 +1247,7 @@ def advance_status(complaint_id):
             SELECT 
                 c.id, c.ticket_no, c.category, c.location, c.description,
                 c.priority, c.status, c.assigned_worker_id, c.photo_filename,
-                c.auto_flagged,
+                c.auto_flagged, c.reported_by,
                 c.created_at, c.updated_at,
                 w.name AS assigned_worker_name,
                 w.role AS assigned_worker_role,
@@ -1030,9 +1276,10 @@ def reset_database():
         cursor = conn.cursor()
         cursor.execute("DROP TABLE IF EXISTS complaints")
         cursor.execute("DROP TABLE IF EXISTS workers")
+        cursor.execute("DROP TABLE IF EXISTS users")
         conn.commit()
     init_db(seed_if_empty=True)
-    return jsonify({"success": True, "message": "Database reset and seeded with 4 workers and 20 sample complaints."})
+    return jsonify({"success": True, "message": "Database reset and seeded with users, workers, and sample complaints."})
 
 
 # Initialize DB on import or startup
