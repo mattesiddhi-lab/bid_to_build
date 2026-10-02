@@ -6,6 +6,7 @@
 const state = {
   currentRole: localStorage.getItem('campusfix_role') || 'user', // 'user' or 'admin'
   workers: [],
+  workload: [],
   complaints: [],
   filters: {
     status: 'All',
@@ -69,7 +70,7 @@ const toastContainer = document.getElementById('toastContainer');
 document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
   applyRole(state.currentRole);
-  await loadWorkers();
+  await loadWorkload();
   await loadStats();
   await loadComplaints();
 });
@@ -109,15 +110,70 @@ function applyRole(role) {
 // ==========================================================================
 // API Calls
 // ==========================================================================
-async function loadWorkers() {
+async function loadWorkload() {
   try {
-    const res = await fetch('/api/workers');
+    const res = await fetch('/api/workload');
     if (res.ok) {
-      state.workers = await res.json();
+      state.workload = await res.json();
+      state.workers = state.workload;
+      renderWorkload();
     }
   } catch (err) {
-    console.error('Failed to load workers:', err);
+    console.error('Failed to load workload:', err);
   }
+}
+
+function renderWorkload() {
+  const grid = document.getElementById('workloadGrid');
+  if (!grid) return;
+
+  if (!state.workload || state.workload.length === 0) {
+    grid.innerHTML = `<div class="empty-state"><p>No worker data available.</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = state.workload.map(w => {
+    let barClass = 'bar-green';
+    let badgeMarkup = '<span class="workload-badge badge-available">Normal</span>';
+    let cardClass = '';
+
+    if (w.active_count >= 5) {
+      barClass = 'bar-red';
+      badgeMarkup = '<span class="workload-badge badge-overloaded">Overloaded</span>';
+      cardClass = 'overloaded-card';
+    } else if (w.active_count >= 3) {
+      barClass = 'bar-orange';
+      badgeMarkup = '<span class="workload-badge badge-moderate">Busy</span>';
+    }
+
+    const pct = Math.min((w.active_count / 6) * 100, 100);
+
+    return `
+      <div class="workload-card ${cardClass}">
+        <div class="workload-header">
+          <div>
+            <div class="workload-name">${escapeHtml(w.name)}</div>
+            <div class="workload-specialty">${escapeHtml(w.role)}</div>
+          </div>
+          ${badgeMarkup}
+        </div>
+
+        <div class="workload-stats-row">
+          <div>
+            <span class="workload-active-count">${w.active_count}</span>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">Active</span>
+          </div>
+          <div class="workload-resolved-count">
+            <span>${w.resolved_count}</span> Resolved
+          </div>
+        </div>
+
+        <div class="workload-track" title="${w.active_count} active complaints">
+          <div class="workload-bar ${barClass}" style="width: ${pct}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 async function loadStats() {
@@ -228,6 +284,11 @@ function renderComplaints() {
     'In Progress': 'Mark Resolved ✓'
   };
 
+  // Rule 5: Sort dropdown with the least-loaded worker first
+  const sortedWorkers = (state.workload && state.workload.length > 0 ? state.workload : state.workers)
+    .slice()
+    .sort((a, b) => (a.active_count || 0) - (b.active_count || 0));
+
   const html = state.complaints.map(item => {
     const pBadge = priorityBadges[item.priority] || item.priority;
     const autoFlaggedBadge = item.auto_flagged ? '<span class="badge badge-auto-flagged">Auto-flagged</span>' : '';
@@ -247,11 +308,12 @@ function renderComplaints() {
       `;
     }
 
-    // Worker options for select dropdown
+    // Worker options for select dropdown showing active count (sorted least-loaded first)
     let workerOptions = `<option value="">Select worker to assign...</option>`;
-    state.workers.forEach(w => {
+    sortedWorkers.forEach(w => {
       const selected = (item.assigned_worker_id === w.id) ? 'selected' : '';
-      workerOptions += `<option value="${w.id}" ${selected}>${w.name} (${w.role})</option>`;
+      const activeCount = w.active_count !== undefined ? w.active_count : 0;
+      workerOptions += `<option value="${w.id}" ${selected}>${escapeHtml(w.name)} (${activeCount} active)</option>`;
     });
 
     // Advance button logic
@@ -325,7 +387,7 @@ function renderComplaints() {
         <!-- Admin Action Bar (visible only in admin mode) -->
         <div class="admin-action-bar">
           <div class="admin-assign-box">
-            <select class="form-control form-control-sm" id="assignSelect-${item.id}" style="width: auto; min-width: 190px;">
+            <select class="form-control form-control-sm" id="assignSelect-${item.id}" style="width: auto; min-width: 220px;">
               ${workerOptions}
             </select>
             <button class="btn btn-outline btn-sm" onclick="assignWorker(${item.id})">
@@ -370,6 +432,7 @@ async function assignWorker(complaintId) {
     const data = await res.json();
     if (res.ok && data.success) {
       showToast(`Assigned to ${data.complaint.assigned_worker_name}. Status: ${data.complaint.status}`, 'success');
+      await loadWorkload();
       await loadStats();
       await loadComplaints();
     } else {
@@ -391,6 +454,7 @@ async function advanceStatus(complaintId) {
     const data = await res.json();
     if (res.ok && data.success) {
       showToast(`Status updated to: ${data.complaint.status}`, 'success');
+      await loadWorkload();
       await loadStats();
       await loadComplaints();
     } else {
@@ -432,6 +496,7 @@ complaintForm.addEventListener('submit', async (e) => {
       const lowRadio = complaintForm.querySelector('input[name="priority"][value="Low"]');
       if (lowRadio) lowRadio.checked = true;
 
+      await loadWorkload();
       await loadStats();
       await loadComplaints();
     } else {
@@ -638,6 +703,7 @@ function setupEventListeners() {
   });
 
   refreshStatsBtn.addEventListener('click', async () => {
+    await loadWorkload();
     await loadStats();
     await loadComplaints();
     showToast('Refreshed data from server.', 'success');

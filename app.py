@@ -222,7 +222,7 @@ def seed_data(conn):
                 "Hostel B - Ground Floor Restroom",
                 "Flush tank valve leaking and water continuously running.",
                 "High",
-                "Resolved",
+                "Assigned",
                 2,  # Marcus Chen
                 None,
                 0,
@@ -249,7 +249,7 @@ def seed_data(conn):
                 "Science Block - Room 304",
                 "Fume hood exhaust circuit breaker tripped twice under heavy lab load.",
                 "High",
-                "Resolved",
+                "Assigned",
                 1,  # Rajesh Sharma
                 None,
                 0,
@@ -262,8 +262,8 @@ def seed_data(conn):
                 "Science Block - Room 304",
                 "Sparking switchboard near chemical storage rack. Smells like burnt plastic.",
                 "Critical",
-                "Reported",
-                None,
+                "In Progress",
+                1,  # Rajesh Sharma
                 "sample_switchboard.svg",
                 0,
                 "2026-10-02 08:30:00",
@@ -316,7 +316,7 @@ def seed_data(conn):
                 "Library - 2nd Floor Silent Zone",
                 "Flickering ballast on 3 ceiling light tubes causing buzzing noise and headache for students.",
                 "Medium",
-                "Resolved",
+                "Assigned",
                 1,  # Rajesh Sharma
                 None,
                 0,
@@ -368,8 +368,8 @@ def seed_data(conn):
                 "North Gate - Security Booth",
                 "Boom barrier rubber dampener detached, metal gate slamming loudly.",
                 "Low",
-                "Assigned",
-                3,  # David Miller
+                "Reported",
+                None,
                 None,
                 0,
                 "2026-10-01 09:00:00",
@@ -491,6 +491,40 @@ def get_workers():
         cursor = conn.cursor()
         cursor.execute("SELECT id, name, role, phone FROM workers ORDER BY id ASC")
         workers = [dict(row) for row in cursor.fetchall()]
+    return jsonify(workers)
+
+
+@app.route("/api/workload", methods=["GET"])
+def get_workload():
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name, role, phone FROM workers ORDER BY id ASC")
+        workers = [dict(row) for row in cursor.fetchall()]
+
+        cursor.execute(
+            """
+            SELECT 
+                assigned_worker_id,
+                SUM(CASE WHEN status IN ('Assigned', 'In Progress') THEN 1 ELSE 0 END) as active_count,
+                SUM(CASE WHEN status = 'Resolved' THEN 1 ELSE 0 END) as resolved_count
+            FROM complaints
+            WHERE assigned_worker_id IS NOT NULL
+            GROUP BY assigned_worker_id
+        """
+        )
+        counts_map = {
+            row["assigned_worker_id"]: {
+                "active_count": row["active_count"] or 0,
+                "resolved_count": row["resolved_count"] or 0,
+            }
+            for row in cursor.fetchall()
+        }
+
+        for w in workers:
+            c = counts_map.get(w["id"], {"active_count": 0, "resolved_count": 0})
+            w["active_count"] = c["active_count"]
+            w["resolved_count"] = c["resolved_count"]
+
     return jsonify(workers)
 
 
