@@ -3,84 +3,182 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - CampusFix Maintenance Portal</title>
+  <title>Login - CampusFix Portal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body class="auth-body">
-  <div class="auth-wrapper">
-    <div class="auth-container">
-      <!-- Brand Header -->
-      <div class="auth-brand">
-        <div class="auth-brand-icon">🛠️</div>
-        <h1 class="auth-brand-title">CampusFix</h1>
-        <p class="auth-brand-subtitle">Campus Facilities & Maintenance Portal</p>
-      </div>
-
-      <!-- Main Login Card -->
-      <div class="card auth-card">
-        <div class="card-header auth-card-header">
-          <h2 class="card-title">Sign In</h2>
-          <p class="card-subtitle">Log in to report issues or manage maintenance work orders</p>
+<body class="auth-page">
+  <div class="auth-split-layout">
+    <!-- Left Branded Hero Panel (Desktop) -->
+    <div class="auth-brand-panel">
+      <div class="brand-panel-decor decor-1"></div>
+      <div class="brand-panel-decor decor-2"></div>
+      
+      <div class="brand-panel-inner">
+        <!-- Logo & Header -->
+        <div class="brand-header-box">
+          <div class="brand-icon-wrap">
+            <span class="brand-icon">🛠️</span>
+          </div>
+          <div class="brand-text-wrap">
+            <h1 class="brand-title">CampusFix</h1>
+            <span class="brand-tag">Maintenance & Facilities</span>
+          </div>
         </div>
 
+        <div class="brand-hero-content">
+          <h2 class="brand-tagline">Report. Track. Resolve.</h2>
+          <p class="brand-desc">
+            The all-in-one maintenance coordination platform designed to keep university buildings, hostels, and research labs safe and running seamlessly.
+          </p>
+
+          <!-- 3 Feature Highlights with Icons -->
+          <div class="brand-features-list">
+            <div class="brand-feature-item">
+              <div class="feature-icon-box">🚀</div>
+              <div class="feature-text">
+                <strong>Instant complaint reporting</strong>
+                <span>Submit repair tickets in seconds with photo attachments and auto-prioritization</span>
+              </div>
+            </div>
+
+            <div class="brand-feature-item">
+              <div class="feature-icon-box">📊</div>
+              <div class="feature-text">
+                <strong>Live status tracking</strong>
+                <span>Real-time status updates from triage and assignment to final verification</span>
+              </div>
+            </div>
+
+            <div class="brand-feature-item">
+              <div class="feature-icon-box">⚡</div>
+              <div class="feature-text">
+                <strong>Smart priority detection</strong>
+                <span>Safety hazards and urgent faults are automatically escalated to on-duty specialists</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer / Trust note -->
+        <div class="brand-panel-footer">
+          <span class="trust-badge">🛡️ Verified Campus Operational Portal</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Form Section -->
+    <div class="auth-form-panel">
+      <!-- Mobile Top Brand Header -->
+      <div class="auth-mobile-brand">
+        <div class="mobile-brand-icon">🛠️</div>
+        <div class="mobile-brand-title">CampusFix</div>
+        <p class="mobile-brand-sub">Campus Maintenance Portal</p>
+      </div>
+
+      <div class="auth-form-container">
+        <!-- Card Heading -->
+        <div class="auth-card-heading">
+          <h2 class="auth-heading-title">Welcome back</h2>
+          <p class="auth-heading-subtitle">Sign in with your credentials to access the portal</p>
+        </div>
+
+        <!-- Inline Error / Success Alert -->
         {% if error %}
-        <div class="alert alert-error" id="loginAlert">
+        <div class="auth-alert alert-error" id="loginAlert">
           <span class="alert-icon">⚠️</span>
-          <span>{{ error }}</span>
+          <div class="alert-msg">{{ error }}</div>
         </div>
         {% endif %}
 
         {% if success_msg %}
-        <div class="alert alert-success" id="loginSuccessAlert">
+        <div class="auth-alert alert-success" id="loginSuccessAlert">
           <span class="alert-icon">✓</span>
-          <span>{{ success_msg }}</span>
+          <div class="alert-msg">{{ success_msg }}</div>
         </div>
         {% endif %}
 
-        <!-- Standard Login Form -->
+        <!-- Login Form -->
         <form action="/login" method="POST" class="auth-form" id="loginForm">
-          <div class="form-group">
-            <label for="usernameInput" class="form-label">Username</label>
-            <input 
-              type="text" 
-              id="usernameInput" 
-              name="username" 
-              class="form-control" 
-              placeholder="e.g. admin or student" 
-              value="{{ username or '' }}"
-              required 
-              autofocus
-            >
+          <!-- Username field with icon -->
+          <div class="auth-field-group">
+            <label for="usernameInput" class="auth-label">Username</label>
+            <div class="auth-input-wrapper">
+              <span class="input-icon">👤</span>
+              <input 
+                type="text" 
+                id="usernameInput" 
+                name="username" 
+                class="auth-input" 
+                placeholder="e.g. admin or student" 
+                value="{{ username or '' }}"
+                required 
+                autofocus
+                autocomplete="username"
+              >
+            </div>
           </div>
 
-          <div class="form-group">
-            <label for="passwordInput" class="form-label">Password</label>
-            <input 
-              type="password" 
-              id="passwordInput" 
-              name="password" 
-              class="form-control" 
-              placeholder="Enter your password" 
-              required
-            >
+          <!-- Password field with icon & show/hide toggle -->
+          <div class="auth-field-group">
+            <label for="passwordInput" class="auth-label">Password</label>
+            <div class="auth-input-wrapper">
+              <span class="input-icon">🔒</span>
+              <input 
+                type="password" 
+                id="passwordInput" 
+                name="password" 
+                class="auth-input" 
+                placeholder="Enter your password" 
+                required
+                autocomplete="current-password"
+              >
+              <button type="button" class="btn-toggle-pwd" id="togglePwdBtn" title="Show or hide password" aria-label="Toggle password visibility">
+                <span class="eye-icon">👁️</span>
+              </button>
+            </div>
           </div>
 
-          <div class="form-actions" style="margin-top: 1.25rem;">
-            <button type="submit" class="btn btn-primary btn-block" id="loginSubmitBtn">
-              Sign In
-            </button>
-          </div>
+          <!-- Primary Sign in Button -->
+          <button type="submit" class="btn btn-auth-primary" id="loginSubmitBtn">
+            <span class="btn-text">Sign in</span>
+          </button>
         </form>
 
         <!-- Footer / Register Link -->
-        <div class="auth-card-footer">
-          <p>Don't have an account? <a href="/register" class="auth-link">Create a User account</a></p>
+        <div class="auth-bottom-link">
+          <span>Don't have an account?</span>
+          <a href="/register" class="link-primary">Register</a>
         </div>
       </div>
     </div>
   </div>
+
+  <script>
+    // Show/Hide password toggle
+    const togglePwdBtn = document.getElementById('togglePwdBtn');
+    const passwordInput = document.getElementById('passwordInput');
+    if (togglePwdBtn && passwordInput) {
+      togglePwdBtn.addEventListener('click', () => {
+        const isPwd = passwordInput.type === 'password';
+        passwordInput.type = isPwd ? 'text' : 'password';
+        togglePwdBtn.querySelector('.eye-icon').textContent = isPwd ? '🙈' : '👁️';
+      });
+    }
+
+    // Loading state on submit
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+      loginForm.addEventListener('submit', () => {
+        const btn = document.getElementById('loginSubmitBtn');
+        if (btn) {
+          btn.querySelector('.btn-text').textContent = 'Signing in...';
+          btn.classList.add('loading');
+        }
+      });
+    }
+  </script>
 </body>
 </html>

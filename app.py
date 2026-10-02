@@ -674,6 +674,17 @@ def register():
                 return jsonify({"error": err}), 400
             return render_template("register.html", error=err, name=name, username=username), 400
 
+        confirm_password = (
+            request.form.get("confirm_password", "").strip()
+            if not request.is_json
+            else (data.get("confirm_password") or "").strip()
+        )
+        if confirm_password and confirm_password != password:
+            err = "Passwords do not match. Please re-enter your password."
+            if request.is_json:
+                return jsonify({"error": err}), 400
+            return render_template("register.html", error=err, name=name, username=username), 400
+
         with get_db() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -1040,6 +1051,51 @@ def get_complaint_history(complaint_id):
             "history": history,
         }
     )
+
+
+@app.route("/api/my-complaints", methods=["GET"])
+@login_required
+def get_my_complaints():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    user_name = user["name"]
+
+    query = """
+        SELECT 
+            c.id, c.ticket_no, c.category, c.location, c.description,
+            c.priority, c.status, c.assigned_worker_id, c.photo_filename,
+            c.auto_flagged, c.reported_by,
+            c.created_at, c.updated_at,
+            w.name AS assigned_worker_name,
+            w.role AS assigned_worker_role,
+            w.phone AS assigned_worker_phone
+        FROM complaints c
+        LEFT JOIN workers w ON c.assigned_worker_id = w.id
+        WHERE c.reported_by = ?
+        ORDER BY c.id DESC
+    """
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        rec_map = get_recurrence_info(cursor)
+        cursor.execute(query, (user_name,))
+        rows = cursor.fetchall()
+
+        complaints = []
+        for row in rows:
+            item = dict(row)
+            r_info = rec_map.get(
+                item["id"],
+                {"is_recurring": False, "recurrence_count": 0, "total_occurrences": 1},
+            )
+            item["is_recurring"] = r_info["is_recurring"]
+            item["recurrence_count"] = r_info["recurrence_count"]
+            item["total_occurrences"] = r_info["total_occurrences"]
+            complaints.append(item)
+
+    return jsonify(complaints)
 
 
 @app.route("/api/complaints", methods=["POST"])

@@ -16,6 +16,7 @@ const state = {
   workload: [],
   problemAreas: [],
   complaints: [],
+  myComplaints: [],
   filters: {
     status: 'All',
     priority: 'All',
@@ -46,6 +47,11 @@ const previewImg = document.getElementById('previewImg');
 const removePhotoBtn = document.getElementById('removePhotoBtn');
 const submitBtn = document.getElementById('submitBtn');
 const submitBtnText = document.getElementById('submitBtnText');
+
+// User Panel Tab Elements
+const myComplaintsContainer = document.getElementById('myComplaintsContainer');
+const myComplaintsBadge = document.getElementById('myComplaintsBadge');
+const refreshMyComplaintsBtn = document.getElementById('refreshMyComplaintsBtn');
 
 const complaintsContainer = document.getElementById('complaintsContainer');
 const totalTicketsCount = document.getElementById('totalTicketsCount');
@@ -82,11 +88,17 @@ const toastContainer = document.getElementById('toastContainer');
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
+  setupDashTabs();
+  setupUserTabs();
   applyRole(state.currentRole);
+
   if (state.currentRole === 'admin') {
     await loadWorkload();
     await loadLocationSummary();
+  } else {
+    await loadMyComplaints();
   }
+
   await loadStats();
   await loadComplaints();
 });
@@ -121,6 +133,94 @@ function applyRole(role) {
 }
 
 // ==========================================================================
+// Admin Dashboard Tabs (Rule 1)
+// ==========================================================================
+function setupDashTabs() {
+  const tabButtons = document.querySelectorAll('.dash-tab-btn');
+  if (!tabButtons || tabButtons.length === 0) return;
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetTab = btn.getAttribute('data-dash-tab');
+
+      // Update button states
+      tabButtons.forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-selected', 'false');
+      });
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
+
+      // Update pane visibility
+      const paneMap = {
+        'status': 'paneStatus',
+        'priority': 'panePriority',
+        'recurring': 'paneRecurring',
+        'workload': 'paneWorkload',
+        'problem-areas': 'paneProblemAreas'
+      };
+
+      document.querySelectorAll('.dash-tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+        pane.classList.add('hidden');
+      });
+
+      const activePaneId = paneMap[targetTab];
+      if (activePaneId) {
+        const activePane = document.getElementById(activePaneId);
+        if (activePane) {
+          activePane.classList.remove('hidden');
+          activePane.classList.add('active');
+        }
+      }
+    });
+  });
+}
+
+// ==========================================================================
+// User Panel Tabs (Rule 2)
+// ==========================================================================
+function setupUserTabs() {
+  const userTabButtons = document.querySelectorAll('.user-tab-btn');
+  if (!userTabButtons || userTabButtons.length === 0) return;
+
+  userTabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabName = btn.getAttribute('data-user-tab');
+      switchUserTab(tabName);
+    });
+  });
+
+  if (refreshMyComplaintsBtn) {
+    refreshMyComplaintsBtn.addEventListener('click', async () => {
+      await loadMyComplaints();
+      showToast('Refreshed your complaints.', 'success');
+    });
+  }
+}
+
+function switchUserTab(tabName) {
+  const userTabButtons = document.querySelectorAll('.user-tab-btn');
+  userTabButtons.forEach(b => {
+    const isTarget = b.getAttribute('data-user-tab') === tabName;
+    b.classList.toggle('active', isTarget);
+    b.setAttribute('aria-selected', isTarget ? 'true' : 'false');
+  });
+
+  const tabReport = document.getElementById('userTabReport');
+  const tabMy = document.getElementById('userTabMyComplaints');
+
+  if (tabName === 'my-complaints') {
+    if (tabReport) { tabReport.classList.remove('active'); tabReport.classList.add('hidden'); }
+    if (tabMy) { tabMy.classList.remove('hidden'); tabMy.classList.add('active'); }
+    loadMyComplaints();
+  } else {
+    if (tabMy) { tabMy.classList.remove('active'); tabMy.classList.add('hidden'); }
+    if (tabReport) { tabReport.classList.remove('hidden'); tabReport.classList.add('active'); }
+  }
+}
+
+// ==========================================================================
 // API Calls
 // ==========================================================================
 async function loadWorkload() {
@@ -130,6 +230,12 @@ async function loadWorkload() {
       state.workload = await res.json();
       state.workers = state.workload;
       renderWorkload();
+
+      const badgeWorkload = document.getElementById('tabBadgeWorkload');
+      if (badgeWorkload) {
+        const overloaded = state.workload.filter(w => w.active_count >= 5).length;
+        badgeWorkload.textContent = overloaded > 0 ? `${overloaded} Overloaded` : `${state.workload.length} workers`;
+      }
     }
   } catch (err) {
     console.error('Failed to load workload:', err);
@@ -195,6 +301,11 @@ async function loadLocationSummary() {
     if (res.ok) {
       state.problemAreas = await res.json();
       renderLocationSummary();
+
+      const badgeProblem = document.getElementById('tabBadgeProblemAreas');
+      if (badgeProblem) {
+        badgeProblem.textContent = `${state.problemAreas.length} Hotspots`;
+      }
     }
   } catch (err) {
     console.error('Failed to load location summary:', err);
@@ -292,16 +403,16 @@ function updateStatsUI() {
   const { status_counts, priority_counts, total, recurring_count } = state.stats;
 
   // Status counts
-  document.getElementById('countReported').textContent = status_counts['Reported'] || 0;
-  document.getElementById('countAssigned').textContent = status_counts['Assigned'] || 0;
-  document.getElementById('countInProgress').textContent = status_counts['In Progress'] || 0;
-  document.getElementById('countResolved').textContent = status_counts['Resolved'] || 0;
+  const elRep = document.getElementById('countReported'); if (elRep) elRep.textContent = status_counts['Reported'] || 0;
+  const elAss = document.getElementById('countAssigned'); if (elAss) elAss.textContent = status_counts['Assigned'] || 0;
+  const elInp = document.getElementById('countInProgress'); if (elInp) elInp.textContent = status_counts['In Progress'] || 0;
+  const elRes = document.getElementById('countResolved'); if (elRes) elRes.textContent = status_counts['Resolved'] || 0;
 
   // Priority counts
-  document.getElementById('countCritical').textContent = priority_counts['Critical'] || 0;
-  document.getElementById('countHigh').textContent = priority_counts['High'] || 0;
-  document.getElementById('countMedium').textContent = priority_counts['Medium'] || 0;
-  document.getElementById('countLow').textContent = priority_counts['Low'] || 0;
+  const elCrit = document.getElementById('countCritical'); if (elCrit) elCrit.textContent = priority_counts['Critical'] || 0;
+  const elHigh = document.getElementById('countHigh'); if (elHigh) elHigh.textContent = priority_counts['High'] || 0;
+  const elMed = document.getElementById('countMedium'); if (elMed) elMed.textContent = priority_counts['Medium'] || 0;
+  const elLow = document.getElementById('countLow'); if (elLow) elLow.textContent = priority_counts['Low'] || 0;
 
   // Recurring count
   const recEl = document.getElementById('countRecurring');
@@ -309,7 +420,26 @@ function updateStatsUI() {
     recEl.textContent = recurring_count || 0;
   }
 
-  totalTicketsCount.textContent = total;
+  if (totalTicketsCount) {
+    totalTicketsCount.textContent = total;
+  }
+
+  // Update tab count badges (Rule 4)
+  const badgeStatus = document.getElementById('tabBadgeStatus');
+  if (badgeStatus) {
+    badgeStatus.textContent = `${total} tickets`;
+  }
+
+  const badgePriority = document.getElementById('tabBadgePriority');
+  if (badgePriority) {
+    const critCount = priority_counts['Critical'] || 0;
+    badgePriority.textContent = critCount > 0 ? `${critCount} Critical` : '0 Critical';
+  }
+
+  const badgeRecurring = document.getElementById('tabBadgeRecurring');
+  if (badgeRecurring) {
+    badgeRecurring.textContent = `${recurring_count || 0}`;
+  }
 }
 
 async function loadComplaints() {
@@ -578,6 +708,185 @@ async function advanceStatus(complaintId) {
 // ==========================================================================
 // Form Submission
 // ==========================================================================
+// My Complaints Logic (Part 2)
+// ==========================================================================
+function formatReportDate(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr.replace(' ', 'T'));
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (e) {
+    return dateStr;
+  }
+}
+
+async function loadMyComplaints() {
+  if (!myComplaintsContainer) return;
+
+  try {
+    const res = await fetch('/api/my-complaints');
+    if (res.ok) {
+      state.myComplaints = await res.json();
+      renderMyComplaints();
+      if (myComplaintsBadge) {
+        myComplaintsBadge.textContent = state.myComplaints.length;
+      }
+    } else {
+      myComplaintsContainer.innerHTML = `<div class="empty-state"><p>Failed to load your complaints.</p></div>`;
+    }
+  } catch (err) {
+    console.error('Error fetching my complaints:', err);
+    myComplaintsContainer.innerHTML = `<div class="empty-state"><p>Network error loading your complaints.</p></div>`;
+  }
+}
+
+function renderMyComplaints() {
+  if (!myComplaintsContainer) return;
+
+  if (!state.myComplaints || state.myComplaints.length === 0) {
+    myComplaintsContainer.innerHTML = `
+      <div class="empty-state my-empty-state">
+        <div class="empty-icon">📂</div>
+        <p><strong>No complaints reported yet.</strong></p>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">
+          You haven't submitted any maintenance requests. Need something fixed?
+        </p>
+        <button type="button" class="btn btn-primary btn-sm" onclick="switchUserTab('report')" style="margin-top: 0.85rem;">
+          ➕ Report a Complaint
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  const categoryIcons = {
+    Electrical: '⚡',
+    Plumbing: '🚰',
+    Furniture: '🪑',
+    Cleaning: '🧹',
+    Other: '📦'
+  };
+
+  const priorityBadges = {
+    Critical: '<span class="badge badge-critical"><span class="pulse-indicator"></span> Critical</span>',
+    High: '<span class="badge badge-high">🟠 High</span>',
+    Medium: '<span class="badge badge-medium">🔵 Medium</span>',
+    Low: '<span class="badge badge-low">🟢 Low</span>'
+  };
+
+  const statusBadges = {
+    Reported: '<span class="badge badge-status-reported"><span class="stat-dot dot-reported"></span> Reported</span>',
+    Assigned: '<span class="badge badge-status-assigned"><span class="stat-dot dot-assigned"></span> Assigned</span>',
+    'In Progress': '<span class="badge badge-status-in-progress"><span class="stat-dot dot-inprogress"></span> In Progress</span>',
+    Resolved: '<span class="badge badge-status-resolved"><span class="stat-dot dot-resolved"></span> Resolved</span>'
+  };
+
+  const steps = ['Reported', 'Assigned', 'In Progress', 'Resolved'];
+
+  const html = state.myComplaints.map(item => {
+    const pBadge = priorityBadges[item.priority] || item.priority;
+    const sBadge = statusBadges[item.status] || item.status;
+    const catIcon = categoryIcons[item.category] || '🔧';
+    const dateFormatted = formatReportDate(item.created_at);
+    const workerName = item.assigned_worker_name ? escapeHtml(item.assigned_worker_name) : 'Not assigned yet';
+
+    // Status progress bar tracker
+    const curIdx = steps.indexOf(item.status);
+    const stepItems = steps.map((stepName, sIdx) => {
+      let stepClass = '';
+      let dotContent = `${sIdx + 1}`;
+
+      if (sIdx < curIdx) {
+        stepClass = 'completed';
+        dotContent = '✓';
+      } else if (sIdx === curIdx) {
+        if (item.status === 'Resolved') {
+          stepClass = 'completed resolved-step';
+          dotContent = '✓';
+        } else {
+          stepClass = 'current';
+          dotContent = '●';
+        }
+      }
+
+      return `
+        <div class="tracker-step ${stepClass}">
+          <div class="step-dot">${dotContent}</div>
+          <div class="step-label">${stepName}</div>
+        </div>
+      `;
+    });
+
+    let trackerHtml = '';
+    for (let i = 0; i < steps.length; i++) {
+      trackerHtml += stepItems[i];
+      if (i < steps.length - 1) {
+        const isLineActive = i < curIdx;
+        trackerHtml += `<div class="tracker-line ${isLineActive ? 'active' : ''}"></div>`;
+      }
+    }
+
+    // Photo thumbnail
+    let photoThumbHtml = '';
+    if (item.photo_filename) {
+      photoThumbHtml = `
+        <div class="my-card-photo-box" onclick="openPhotoModal('${item.photo_filename}', '${item.ticket_no} - ${escapeHtml(item.location)}')">
+          <img class="my-card-thumb" src="/static/uploads/${item.photo_filename}" alt="Photo">
+          <span class="thumb-hint">📷 View photo</span>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="my-complaint-card">
+        <div class="my-card-header">
+          <div class="my-ticket-badge-group">
+            <span class="my-ticket-no">#${escapeHtml(item.ticket_no)}</span>
+            <span class="badge badge-category">${catIcon} ${escapeHtml(item.category)}</span>
+            ${item.is_recurring ? `<span class="badge badge-recurring">Recurring (${item.total_occurrences}x)</span>` : ''}
+          </div>
+          <div class="my-card-status-badges">
+            ${pBadge}
+            ${sBadge}
+          </div>
+        </div>
+
+        <div class="my-card-body">
+          <div class="my-card-info">
+            <div class="my-card-location">📍 <strong>${escapeHtml(item.location)}</strong></div>
+            <p class="my-card-desc">${escapeHtml(item.description)}</p>
+            <div class="my-card-meta">
+              <span class="my-meta-item">🕒 <strong>Reported:</strong> ${dateFormatted}</span>
+              <span class="my-meta-item">👷 <strong>Assigned Worker:</strong> ${workerName}</span>
+            </div>
+          </div>
+          ${photoThumbHtml}
+        </div>
+
+        <!-- Status Progress Tracker -->
+        <div class="my-status-tracker">
+          <div class="tracker-header">Repair Progress</div>
+          <div class="tracker-steps">
+            ${trackerHtml}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  myComplaintsContainer.innerHTML = html;
+}
+
+// ==========================================================================
+// Form Submission
+// ==========================================================================
 if (complaintForm) {
   complaintForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -611,6 +920,10 @@ if (complaintForm) {
         if (state.currentRole === 'admin') {
           await loadWorkload();
           await loadLocationSummary();
+        } else {
+          // Rule 5: After a user submits a new complaint, automatically switch to My Complaints and show the new one at the top
+          switchUserTab('my-complaints');
+          await loadMyComplaints();
         }
         await loadStats();
         await loadComplaints();
@@ -943,3 +1256,5 @@ window.assignWorker = assignWorker;
 window.advanceStatus = advanceStatus;
 window.toggleLocationFilter = toggleLocationFilter;
 window.clearLocationFilter = clearLocationFilter;
+window.switchUserTab = switchUserTab;
+window.loadMyComplaints = loadMyComplaints;

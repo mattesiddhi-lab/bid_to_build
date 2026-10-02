@@ -49,252 +49,313 @@
   </div>
 
   <main class="main-container">
-    <!-- ADMIN SECTION: Maintenance Dashboard (Counts by Status & Priority) -->
-    <section class="dashboard-section" id="adminDashboardSection">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">Maintenance Dashboard</h2>
-          <p class="section-subtitle">Real-time breakdown of campus work orders by status and priority</p>
+    {% if user and user.role == 'admin' %}
+    <!-- ADMIN SECTION: Compact Tabbed Dashboard (Rule 1) -->
+    <section class="dashboard-section compact-admin-panel card" id="adminDashboardSection">
+      <div class="dash-tabs-header">
+        <div class="dash-tabs-nav" role="tablist" aria-label="Admin Dashboard Views">
+          <button type="button" class="dash-tab-btn active" data-dash-tab="status" id="tabBtnStatus" role="tab" aria-selected="true" aria-controls="paneStatus">
+            <span class="tab-icon">📊</span>
+            <span class="tab-title">By Status</span>
+            <span class="tab-count-pill" id="tabBadgeStatus">0</span>
+          </button>
+          <button type="button" class="dash-tab-btn" data-dash-tab="priority" id="tabBtnPriority" role="tab" aria-selected="false" aria-controls="panePriority">
+            <span class="tab-icon">⚡</span>
+            <span class="tab-title">By Priority</span>
+            <span class="tab-count-pill badge-crit-pill" id="tabBadgePriority">0</span>
+          </button>
+          <button type="button" class="dash-tab-btn" data-dash-tab="recurring" id="tabBtnRecurring" role="tab" aria-selected="false" aria-controls="paneRecurring">
+            <span class="tab-icon">🔁</span>
+            <span class="tab-title">Recurring Issues</span>
+            <span class="tab-count-pill badge-purple-pill" id="tabBadgeRecurring">0</span>
+          </button>
+          <button type="button" class="dash-tab-btn" data-dash-tab="workload" id="tabBtnWorkload" role="tab" aria-selected="false" aria-controls="paneWorkload">
+            <span class="tab-icon">👷</span>
+            <span class="tab-title">Worker Workload</span>
+            <span class="tab-count-pill badge-neutral-pill" id="tabBadgeWorkload">4 workers</span>
+          </button>
+          <button type="button" class="dash-tab-btn" data-dash-tab="problem-areas" id="tabBtnProblemAreas" role="tab" aria-selected="false" aria-controls="paneProblemAreas">
+            <span class="tab-icon">📍</span>
+            <span class="tab-title">Problem Areas</span>
+            <span class="tab-count-pill badge-hotspot-pill" id="tabBadgeProblemAreas">Hotspots</span>
+          </button>
         </div>
-        <button class="btn btn-outline btn-sm" id="refreshStatsBtn" title="Refresh metrics">
-          🔄 Refresh
-        </button>
-      </div>
 
-      <!-- Status Counts Grid -->
-      <div class="stats-group">
-        <h3 class="group-label">Counts by Status</h3>
-        <div class="stats-grid">
-          <div class="stat-card status-card reported" data-filter-status="Reported" title="Click to filter Reported">
-            <div class="stat-header">
-              <span class="stat-dot dot-reported"></span>
-              <span class="stat-title">Reported</span>
-            </div>
-            <div class="stat-value" id="countReported">0</div>
-            <div class="stat-desc">Awaiting triage & assignment</div>
-          </div>
-
-          <div class="stat-card status-card assigned" data-filter-status="Assigned" title="Click to filter Assigned">
-            <div class="stat-header">
-              <span class="stat-dot dot-assigned"></span>
-              <span class="stat-title">Assigned</span>
-            </div>
-            <div class="stat-value" id="countAssigned">0</div>
-            <div class="stat-desc">Dispatched to worker</div>
-          </div>
-
-          <div class="stat-card status-card in-progress" data-filter-status="In Progress" title="Click to filter In Progress">
-            <div class="stat-header">
-              <span class="stat-dot dot-inprogress"></span>
-              <span class="stat-title">In Progress</span>
-            </div>
-            <div class="stat-value" id="countInProgress">0</div>
-            <div class="stat-desc">Repairs actively underway</div>
-          </div>
-
-          <div class="stat-card status-card resolved" data-filter-status="Resolved" title="Click to filter Resolved">
-            <div class="stat-header">
-              <span class="stat-dot dot-resolved"></span>
-              <span class="stat-title">Resolved</span>
-            </div>
-            <div class="stat-value" id="countResolved">0</div>
-            <div class="stat-desc">Completed & verified</div>
-          </div>
+        <div class="dash-header-actions">
+          <button class="btn btn-outline btn-sm" id="refreshStatsBtn" title="Refresh metrics">
+            🔄 Refresh
+          </button>
         </div>
       </div>
 
-      <!-- Priority Counts Grid -->
-      <div class="stats-group">
-        <h3 class="group-label">Counts by Priority</h3>
-        <div class="stats-grid priority-stats-grid">
-          <div class="stat-card priority-card critical" data-filter-priority="Critical" title="Click to filter Critical">
-            <div class="stat-header">
-              <span class="pulse-indicator"></span>
-              <span class="stat-title">Critical</span>
+      <!-- Tab Panes Container -->
+      <div class="dash-tab-panes">
+        <!-- 1. By Status Pane -->
+        <div class="dash-tab-pane active" id="paneStatus" role="tabpanel" aria-labelledby="tabBtnStatus">
+          <div class="stats-grid">
+            <div class="stat-card status-card reported" data-filter-status="Reported" title="Click to filter Reported">
+              <div class="stat-header">
+                <span class="stat-dot dot-reported"></span>
+                <span class="stat-title">Reported</span>
+              </div>
+              <div class="stat-value" id="countReported">0</div>
+              <div class="stat-desc">Awaiting triage & assignment</div>
             </div>
-            <div class="stat-value text-critical" id="countCritical">0</div>
-            <div class="stat-desc">Safety hazard / urgent</div>
-          </div>
 
-          <div class="stat-card priority-card high" data-filter-priority="High" title="Click to filter High">
-            <div class="stat-header">
-              <span class="stat-dot dot-high"></span>
-              <span class="stat-title">High</span>
+            <div class="stat-card status-card assigned" data-filter-status="Assigned" title="Click to filter Assigned">
+              <div class="stat-header">
+                <span class="stat-dot dot-assigned"></span>
+                <span class="stat-title">Assigned</span>
+              </div>
+              <div class="stat-value" id="countAssigned">0</div>
+              <div class="stat-desc">Dispatched to worker</div>
             </div>
-            <div class="stat-value text-high" id="countHigh">0</div>
-            <div class="stat-desc">Major disruption</div>
-          </div>
 
-          <div class="stat-card priority-card medium" data-filter-priority="Medium" title="Click to filter Medium">
-            <div class="stat-header">
-              <span class="stat-dot dot-medium"></span>
-              <span class="stat-title">Medium</span>
+            <div class="stat-card status-card in-progress" data-filter-status="In Progress" title="Click to filter In Progress">
+              <div class="stat-header">
+                <span class="stat-dot dot-inprogress"></span>
+                <span class="stat-title">In Progress</span>
+              </div>
+              <div class="stat-value" id="countInProgress">0</div>
+              <div class="stat-desc">Repairs actively underway</div>
             </div>
-            <div class="stat-value text-medium" id="countMedium">0</div>
-            <div class="stat-desc">Standard maintenance</div>
-          </div>
 
-          <div class="stat-card priority-card low" data-filter-priority="Low" title="Click to filter Low">
-            <div class="stat-header">
-              <span class="stat-dot dot-low"></span>
-              <span class="stat-title">Low</span>
+            <div class="stat-card status-card resolved" data-filter-status="Resolved" title="Click to filter Resolved">
+              <div class="stat-header">
+                <span class="stat-dot dot-resolved"></span>
+                <span class="stat-title">Resolved</span>
+              </div>
+              <div class="stat-value" id="countResolved">0</div>
+              <div class="stat-desc">Completed & verified</div>
             </div>
-            <div class="stat-value text-low" id="countLow">0</div>
-            <div class="stat-desc">Cosmetic / minor issue</div>
           </div>
         </div>
-      </div>
 
-      <!-- Recurring Issues Count Card -->
-      <div class="stats-group">
-        <h3 class="group-label">Recurrence Analysis</h3>
-        <div class="stats-grid recurring-stats-grid">
-          <div class="stat-card recurring-card" id="recurringStatCard" data-filter-recurring="true" title="Click to filter recurring complaints only">
-            <div class="stat-header">
-              <span class="stat-dot dot-recurring"></span>
-              <span class="stat-title">Recurring Issues</span>
+        <!-- 2. By Priority Pane -->
+        <div class="dash-tab-pane hidden" id="panePriority" role="tabpanel" aria-labelledby="tabBtnPriority">
+          <div class="stats-grid priority-stats-grid">
+            <div class="stat-card priority-card critical" data-filter-priority="Critical" title="Click to filter Critical">
+              <div class="stat-header">
+                <span class="pulse-indicator"></span>
+                <span class="stat-title">Critical</span>
+              </div>
+              <div class="stat-value text-critical" id="countCritical">0</div>
+              <div class="stat-desc">Safety hazard / urgent</div>
             </div>
-            <div class="stat-value text-recurring" id="countRecurring">0</div>
-            <div class="stat-desc">Repeated complaints at same location & category (click to filter)</div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Worker Workload Section (Admin mode only) -->
-      <div class="stats-group admin-only-section" id="workerWorkloadSection">
-        <h3 class="group-label">👷 Worker Workload</h3>
-        <div class="workload-grid" id="workloadGrid">
-          <div class="loading-state">
-            <div class="spinner"></div>
-            <p>Loading worker workloads...</p>
-          </div>
-        </div>
-      </div>
+            <div class="stat-card priority-card high" data-filter-priority="High" title="Click to filter High">
+              <div class="stat-header">
+                <span class="stat-dot dot-high"></span>
+                <span class="stat-title">High</span>
+              </div>
+              <div class="stat-value text-high" id="countHigh">0</div>
+              <div class="stat-desc">Major disruption</div>
+            </div>
 
-      <!-- Problem Areas Section (Admin mode only) -->
-      <div class="stats-group admin-only-section" id="problemAreasSection">
-        <div class="problem-areas-header">
-          <h3 class="group-label">📍 Problem Areas</h3>
-          <div id="activeLocationFilterChip" class="location-filter-chip hidden">
-            <span>Filtered by location: <strong id="filterLocationName"></strong></span>
-            <button type="button" class="btn-clear-location" id="clearLocationFilterBtn" title="Clear location filter">Clear filter &times;</button>
+            <div class="stat-card priority-card medium" data-filter-priority="Medium" title="Click to filter Medium">
+              <div class="stat-header">
+                <span class="stat-dot dot-medium"></span>
+                <span class="stat-title">Medium</span>
+              </div>
+              <div class="stat-value text-medium" id="countMedium">0</div>
+              <div class="stat-desc">Standard maintenance</div>
+            </div>
+
+            <div class="stat-card priority-card low" data-filter-priority="Low" title="Click to filter Low">
+              <div class="stat-header">
+                <span class="stat-dot dot-low"></span>
+                <span class="stat-title">Low</span>
+              </div>
+              <div class="stat-value text-low" id="countLow">0</div>
+              <div class="stat-desc">Cosmetic / minor issue</div>
+            </div>
           </div>
         </div>
-        <div class="problem-areas-container" id="problemAreasContainer">
-          <div class="loading-state">
-            <div class="spinner"></div>
-            <p>Loading problem areas...</p>
+
+        <!-- 3. Recurring Issues Pane -->
+        <div class="dash-tab-pane hidden" id="paneRecurring" role="tabpanel" aria-labelledby="tabBtnRecurring">
+          <div class="stats-grid recurring-stats-grid">
+            <div class="stat-card recurring-card" id="recurringStatCard" data-filter-recurring="true" title="Click to filter recurring complaints only">
+              <div class="stat-header">
+                <span class="stat-dot dot-recurring"></span>
+                <span class="stat-title">Recurring Issues</span>
+              </div>
+              <div class="stat-value text-recurring" id="countRecurring">0</div>
+              <div class="stat-desc">Repeated complaints at same location & category (click to filter list)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Worker Workload Pane -->
+        <div class="dash-tab-pane hidden" id="paneWorkload" role="tabpanel" aria-labelledby="tabBtnWorkload">
+          <div class="workload-grid" id="workloadGrid">
+            <div class="loading-state">
+              <div class="spinner"></div>
+              <p>Loading worker workloads...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Problem Areas Pane -->
+        <div class="dash-tab-pane hidden" id="paneProblemAreas" role="tabpanel" aria-labelledby="tabBtnProblemAreas">
+          <div class="problem-areas-header">
+            <div id="activeLocationFilterChip" class="location-filter-chip hidden">
+              <span>Filtered by location: <strong id="filterLocationName"></strong></span>
+              <button type="button" class="btn-clear-location" id="clearLocationFilterBtn" title="Clear location filter">Clear filter &times;</button>
+            </div>
+          </div>
+          <div class="problem-areas-container" id="problemAreasContainer">
+            <div class="loading-state">
+              <div class="spinner"></div>
+              <p>Loading problem areas...</p>
+            </div>
           </div>
         </div>
       </div>
     </section>
+    {% endif %}
 
-    <!-- CONTENT LAYOUT: User form on left/top (for users only), Complaints on right/bottom (full width for admins) -->
+    <!-- CONTENT LAYOUT: User Form/My Complaints on left/top (for users), Complaints on right (or full width for admin) -->
     <div class="content-layout" id="contentLayout">
       {% if not user or user.role != 'admin' %}
-      <!-- COMPLAINT SUBMISSION FORM SECTION (Resident / User mode only) -->
-      <section class="form-section card" id="complaintFormSection">
-        <div class="card-header">
-          <h2 class="card-title">📝 Report a Complaint</h2>
-          <p class="card-subtitle">Submit facilities, electrical, or plumbing issues to the maintenance team</p>
+      <!-- USER PANEL (Tabs: Report Complaint & My Complaints) -->
+      <section class="user-panel-section card" id="userPanelSection">
+        <div class="user-panel-nav" role="tablist" aria-label="User Navigation">
+          <button type="button" class="user-tab-btn active" data-user-tab="report" id="tabBtnReport" role="tab" aria-selected="true" aria-controls="userTabReport">
+            <span class="tab-icon">📝</span>
+            <span class="tab-label">Report Complaint</span>
+          </button>
+          <button type="button" class="user-tab-btn" data-user-tab="my-complaints" id="tabBtnMyComplaints" role="tab" aria-selected="false" aria-controls="userTabMyComplaints">
+            <span class="tab-icon">📋</span>
+            <span class="tab-label">My Complaints</span>
+            <span class="user-tab-badge" id="myComplaintsBadge">0</span>
+          </button>
         </div>
 
-        <form id="complaintForm" class="complaint-form" enctype="multipart/form-data">
-          <!-- Category -->
-          <div class="form-group">
-            <label for="categorySelect" class="form-label">
-              Category <span class="required">*</span>
-            </label>
-            <div class="select-wrapper">
-              <select id="categorySelect" name="category" class="form-control" required>
-                <option value="" disabled selected>Select category...</option>
-                <option value="Electrical">⚡ Electrical (Lighting, Power, Wiring)</option>
-                <option value="Plumbing">🚰 Plumbing (Leaks, Taps, Drainage)</option>
-                <option value="Furniture">🪑 Furniture (Benches, Chairs, Doors)</option>
-                <option value="Cleaning">🧹 Cleaning (Waste, Spill, Sanitization)</option>
-                <option value="Other">📦 Other Maintenance Issue</option>
-              </select>
-            </div>
+        <!-- Tab 1: Report Complaint Form -->
+        <div class="user-tab-content active" id="userTabReport" role="tabpanel" aria-labelledby="tabBtnReport">
+          <div class="card-header user-pane-header">
+            <h2 class="card-title">📝 Report a Complaint</h2>
+            <p class="card-subtitle">Submit facilities, electrical, or plumbing issues to the maintenance team</p>
           </div>
 
-          <!-- Priority -->
-          <div class="form-group">
-            <label class="form-label">
-              Priority Level <span class="required">*</span>
-            </label>
-            <div class="priority-selector">
-              <label class="priority-opt opt-low">
-                <input type="radio" name="priority" value="Low" checked>
-                <span class="priority-box badge-low">🟢 Low</span>
+          <form id="complaintForm" class="complaint-form" enctype="multipart/form-data">
+            <!-- Category -->
+            <div class="form-group">
+              <label for="categorySelect" class="form-label">
+                Category <span class="required">*</span>
               </label>
-              <label class="priority-opt opt-medium">
-                <input type="radio" name="priority" value="Medium">
-                <span class="priority-box badge-medium">🔵 Medium</span>
-              </label>
-              <label class="priority-opt opt-high">
-                <input type="radio" name="priority" value="High">
-                <span class="priority-box badge-high">🟠 High</span>
-              </label>
-              <label class="priority-opt opt-critical">
-                <input type="radio" name="priority" value="Critical">
-                <span class="priority-box badge-critical">🔴 Critical</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Location -->
-          <div class="form-group">
-            <label for="locationInput" class="form-label">
-              Location <span class="required">*</span>
-            </label>
-            <input 
-              type="text" 
-              id="locationInput" 
-              name="location" 
-              class="form-control" 
-              placeholder="e.g., Science Block, Room 304, or Hostel B - 2nd Floor" 
-              required
-            >
-          </div>
-
-          <!-- Description -->
-          <div class="form-group">
-            <label for="descriptionInput" class="form-label">
-              Issue Description <span class="required">*</span>
-            </label>
-            <textarea 
-              id="descriptionInput" 
-              name="description" 
-              class="form-control" 
-              rows="3" 
-              placeholder="Describe the issue clearly (e.g., water dripping from ceiling, sparking switchboard)..." 
-              required
-            ></textarea>
-          </div>
-
-          <!-- Photo Upload -->
-          <div class="form-group">
-            <label class="form-label">Photo Upload (Optional)</label>
-            <div class="file-upload-area" id="dropArea">
-              <input type="file" id="photoInput" name="photo" accept="image/*" class="file-input">
-              <div class="upload-placeholder" id="uploadPlaceholder">
-                <div class="upload-icon">📷</div>
-                <div class="upload-text"><strong>Click to upload</strong> or drag & drop a photo</div>
-                <div class="upload-hint">PNG, JPG, JPEG, WEBP up to 16MB</div>
-              </div>
-              <div class="upload-preview hidden" id="uploadPreview">
-                <img id="previewImg" src="" alt="Preview">
-                <button type="button" class="btn-remove-photo" id="removePhotoBtn" title="Remove photo">&times;</button>
+              <div class="select-wrapper">
+                <select id="categorySelect" name="category" class="form-control" required>
+                  <option value="" disabled selected>Select category...</option>
+                  <option value="Electrical">⚡ Electrical (Lighting, Power, Wiring)</option>
+                  <option value="Plumbing">🚰 Plumbing (Leaks, Taps, Drainage)</option>
+                  <option value="Furniture">🪑 Furniture (Benches, Chairs, Doors)</option>
+                  <option value="Cleaning">🧹 Cleaning (Waste, Spill, Sanitization)</option>
+                  <option value="Other">📦 Other Maintenance Issue</option>
+                </select>
               </div>
             </div>
-          </div>
 
-          <div class="form-actions">
-            <button type="submit" class="btn btn-primary btn-block" id="submitBtn">
-              <span id="submitBtnText">Submit Maintenance Ticket</span>
+            <!-- Priority -->
+            <div class="form-group">
+              <label class="form-label">
+                Priority Level <span class="required">*</span>
+              </label>
+              <div class="priority-selector">
+                <label class="priority-opt opt-low">
+                  <input type="radio" name="priority" value="Low" checked>
+                  <span class="priority-box badge-low">🟢 Low</span>
+                </label>
+                <label class="priority-opt opt-medium">
+                  <input type="radio" name="priority" value="Medium">
+                  <span class="priority-box badge-medium">🔵 Medium</span>
+                </label>
+                <label class="priority-opt opt-high">
+                  <input type="radio" name="priority" value="High">
+                  <span class="priority-box badge-high">🟠 High</span>
+                </label>
+                <label class="priority-opt opt-critical">
+                  <input type="radio" name="priority" value="Critical">
+                  <span class="priority-box badge-critical">🔴 Critical</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Location -->
+            <div class="form-group">
+              <label for="locationInput" class="form-label">
+                Location <span class="required">*</span>
+              </label>
+              <input 
+                type="text" 
+                id="locationInput" 
+                name="location" 
+                class="form-control" 
+                placeholder="e.g., Science Block, Room 304, or Hostel B - 2nd Floor" 
+                required
+              >
+            </div>
+
+            <!-- Description -->
+            <div class="form-group">
+              <label for="descriptionInput" class="form-label">
+                Issue Description <span class="required">*</span>
+              </label>
+              <textarea 
+                id="descriptionInput" 
+                name="description" 
+                class="form-control" 
+                rows="3" 
+                placeholder="Describe the issue clearly (e.g., water dripping from ceiling, sparking switchboard)..." 
+                required
+              ></textarea>
+            </div>
+
+            <!-- Photo Upload -->
+            <div class="form-group">
+              <label class="form-label">Photo Upload (Optional)</label>
+              <div class="file-upload-area" id="dropArea">
+                <input type="file" id="photoInput" name="photo" accept="image/*" class="file-input">
+                <div class="upload-placeholder" id="uploadPlaceholder">
+                  <div class="upload-icon">📷</div>
+                  <div class="upload-text"><strong>Click to upload</strong> or drag & drop a photo</div>
+                  <div class="upload-hint">PNG, JPG, JPEG, WEBP up to 16MB</div>
+                </div>
+                <div class="upload-preview hidden" id="uploadPreview">
+                  <img id="previewImg" src="" alt="Preview">
+                  <button type="button" class="btn-remove-photo" id="removePhotoBtn" title="Remove photo">&times;</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary btn-block" id="submitBtn">
+                <span id="submitBtnText">Submit Maintenance Ticket</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Tab 2: My Complaints Section -->
+        <div class="user-tab-content hidden" id="userTabMyComplaints" role="tabpanel" aria-labelledby="tabBtnMyComplaints">
+          <div class="card-header user-pane-header my-complaints-header">
+            <div>
+              <h2 class="card-title">📋 My Complaints</h2>
+              <p class="card-subtitle">Track real-time status and assigned technician for your tickets</p>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" id="refreshMyComplaintsBtn" title="Refresh your complaints">
+              🔄 Refresh
             </button>
           </div>
-        </form>
+
+          <div id="myComplaintsContainer" class="my-complaints-list">
+            <div class="loading-state">
+              <div class="spinner"></div>
+              <p>Loading your complaints...</p>
+            </div>
+          </div>
+        </div>
       </section>
       {% endif %}
 

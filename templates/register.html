@@ -6,87 +6,234 @@
   <title>Create Account - CampusFix</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body class="auth-body">
-  <div class="auth-wrapper">
-    <div class="auth-container">
-      <!-- Brand Header -->
-      <div class="auth-brand">
-        <div class="auth-brand-icon">🛠️</div>
-        <h1 class="auth-brand-title">CampusFix</h1>
-        <p class="auth-brand-subtitle">Campus Facilities & Maintenance Portal</p>
-      </div>
-
-      <!-- Main Register Card -->
-      <div class="card auth-card">
-        <div class="card-header auth-card-header">
-          <h2 class="card-title">Create User Account</h2>
-          <p class="card-subtitle">Register to submit and track maintenance requests</p>
+<body class="auth-page">
+  <div class="auth-split-layout">
+    <!-- Left Branded Hero Panel (Desktop) -->
+    <div class="auth-brand-panel">
+      <div class="brand-panel-decor decor-1"></div>
+      <div class="brand-panel-decor decor-2"></div>
+      
+      <div class="brand-panel-inner">
+        <!-- Logo & Header -->
+        <div class="brand-header-box">
+          <div class="brand-icon-wrap">
+            <span class="brand-icon">🛠️</span>
+          </div>
+          <div class="brand-text-wrap">
+            <h1 class="brand-title">CampusFix</h1>
+            <span class="brand-tag">Maintenance & Facilities</span>
+          </div>
         </div>
 
+        <div class="brand-hero-content">
+          <h2 class="brand-tagline">Report. Track. Resolve.</h2>
+          <p class="brand-desc">
+            Join the campus community in maintaining clean, safe, and fully operational study spaces, laboratories, and residential halls.
+          </p>
+
+          <!-- 3 Feature Highlights with Icons -->
+          <div class="brand-features-list">
+            <div class="brand-feature-item">
+              <div class="feature-icon-box">🚀</div>
+              <div class="feature-text">
+                <strong>Instant complaint reporting</strong>
+                <span>Submit repair tickets in seconds with photo attachments and auto-prioritization</span>
+              </div>
+            </div>
+
+            <div class="brand-feature-item">
+              <div class="feature-icon-box">📊</div>
+              <div class="feature-text">
+                <strong>Live status tracking</strong>
+                <span>Real-time status updates from triage and assignment to final verification</span>
+              </div>
+            </div>
+
+            <div class="brand-feature-item">
+              <div class="feature-icon-box">⚡</div>
+              <div class="feature-text">
+                <strong>Smart priority detection</strong>
+                <span>Safety hazards and urgent faults are automatically escalated to on-duty specialists</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer / Trust note -->
+        <div class="brand-panel-footer">
+          <span class="trust-badge">🛡️ Verified Campus Operational Portal</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Form Section -->
+    <div class="auth-form-panel">
+      <!-- Mobile Top Brand Header -->
+      <div class="auth-mobile-brand">
+        <div class="mobile-brand-icon">🛠️</div>
+        <div class="mobile-brand-title">CampusFix</div>
+        <p class="mobile-brand-sub">Campus Maintenance Portal</p>
+      </div>
+
+      <div class="auth-form-container">
+        <!-- Card Heading -->
+        <div class="auth-card-heading">
+          <h2 class="auth-heading-title">Create an account</h2>
+          <p class="auth-heading-subtitle">Register to submit and track maintenance requests</p>
+        </div>
+
+        <!-- Inline Error Alert -->
         {% if error %}
-        <div class="alert alert-error" id="registerAlert">
+        <div class="auth-alert alert-error" id="registerAlert">
           <span class="alert-icon">⚠️</span>
-          <span>{{ error }}</span>
+          <div class="alert-msg">{{ error }}</div>
         </div>
         {% endif %}
 
+        <!-- Client-side error alert box (hidden by default) -->
+        <div class="auth-alert alert-error hidden" id="clientErrorAlert">
+          <span class="alert-icon">⚠️</span>
+          <div class="alert-msg" id="clientErrorMsg"></div>
+        </div>
+
         <!-- Registration Form -->
         <form action="/register" method="POST" class="auth-form" id="registerForm">
-          <div class="form-group">
-            <label for="nameInput" class="form-label">Full Name <span class="required">*</span></label>
-            <input 
-              type="text" 
-              id="nameInput" 
-              name="name" 
-              class="form-control" 
-              placeholder="e.g. John Doe or Priya Sharma" 
-              value="{{ name or '' }}"
-              required 
-              autofocus
-            >
+          <!-- Full Name field -->
+          <div class="auth-field-group">
+            <label for="nameInput" class="auth-label">Full Name <span class="required">*</span></label>
+            <div class="auth-input-wrapper">
+              <span class="input-icon">🪪</span>
+              <input 
+                type="text" 
+                id="nameInput" 
+                name="name" 
+                class="auth-input" 
+                placeholder="e.g. Priya Sharma or John Doe" 
+                value="{{ name or '' }}"
+                required 
+                autofocus
+                autocomplete="name"
+              >
+            </div>
           </div>
 
-          <div class="form-group">
-            <label for="regUsernameInput" class="form-label">Username <span class="required">*</span></label>
-            <input 
-              type="text" 
-              id="regUsernameInput" 
-              name="username" 
-              class="form-control" 
-              placeholder="e.g. jdoe24" 
-              value="{{ username or '' }}"
-              required
-            >
+          <!-- Username field -->
+          <div class="auth-field-group">
+            <label for="regUsernameInput" class="auth-label">Username <span class="required">*</span></label>
+            <div class="auth-input-wrapper">
+              <span class="input-icon">👤</span>
+              <input 
+                type="text" 
+                id="regUsernameInput" 
+                name="username" 
+                class="auth-input" 
+                placeholder="Choose a username (min. 3 chars)" 
+                value="{{ username or '' }}"
+                required
+                autocomplete="username"
+              >
+            </div>
           </div>
 
-          <div class="form-group">
-            <label for="regPasswordInput" class="form-label">Password <span class="required">*</span></label>
-            <input 
-              type="password" 
-              id="regPasswordInput" 
-              name="password" 
-              class="form-control" 
-              placeholder="At least 4 characters" 
-              required
-            >
+          <!-- Password field with toggle -->
+          <div class="auth-field-group">
+            <label for="regPasswordInput" class="auth-label">Password <span class="required">*</span></label>
+            <div class="auth-input-wrapper">
+              <span class="input-icon">🔒</span>
+              <input 
+                type="password" 
+                id="regPasswordInput" 
+                name="password" 
+                class="auth-input" 
+                placeholder="At least 4 characters" 
+                required
+                autocomplete="new-password"
+              >
+              <button type="button" class="btn-toggle-pwd" id="toggleRegPwdBtn" title="Show or hide password" aria-label="Toggle password visibility">
+                <span class="eye-icon">👁️</span>
+              </button>
+            </div>
           </div>
 
-          <div class="form-actions" style="margin-top: 1.25rem;">
-            <button type="submit" class="btn btn-primary btn-block" id="registerSubmitBtn">
-              Create Account
-            </button>
+          <!-- Confirm Password field with toggle -->
+          <div class="auth-field-group">
+            <label for="regConfirmPasswordInput" class="auth-label">Confirm Password <span class="required">*</span></label>
+            <div class="auth-input-wrapper">
+              <span class="input-icon">🔑</span>
+              <input 
+                type="password" 
+                id="regConfirmPasswordInput" 
+                name="confirm_password" 
+                class="auth-input" 
+                placeholder="Re-enter your password" 
+                required
+                autocomplete="new-password"
+              >
+              <button type="button" class="btn-toggle-pwd" id="toggleRegConfirmPwdBtn" title="Show or hide password" aria-label="Toggle confirm password visibility">
+                <span class="eye-icon">👁️</span>
+              </button>
+            </div>
           </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="btn btn-auth-primary" id="registerSubmitBtn">
+            <span class="btn-text">Create Account</span>
+          </button>
         </form>
 
-        <!-- Footer / Login Link -->
-        <div class="auth-card-footer">
-          <p>Already have an account? <a href="/login" class="auth-link">Sign in instead</a></p>
+        <!-- Footer / Sign In Link -->
+        <div class="auth-bottom-link">
+          <span>Already have an account?</span>
+          <a href="/login" class="link-primary">Sign in instead</a>
         </div>
       </div>
     </div>
   </div>
+
+  <script>
+    // Password toggles
+    function setupToggle(btnId, inputId) {
+      const btn = document.getElementById(btnId);
+      const input = document.getElementById(inputId);
+      if (btn && input) {
+        btn.addEventListener('click', () => {
+          const isPwd = input.type === 'password';
+          input.type = isPwd ? 'text' : 'password';
+          btn.querySelector('.eye-icon').textContent = isPwd ? '🙈' : '👁️';
+        });
+      }
+    }
+    setupToggle('toggleRegPwdBtn', 'regPasswordInput');
+    setupToggle('toggleRegConfirmPwdBtn', 'regConfirmPasswordInput');
+
+    // Validation & loading state on submit
+    const regForm = document.getElementById('registerForm');
+    if (regForm) {
+      regForm.addEventListener('submit', (e) => {
+        const pwd = document.getElementById('regPasswordInput').value;
+        const confirmPwd = document.getElementById('regConfirmPasswordInput').value;
+        const alertBox = document.getElementById('clientErrorAlert');
+        const alertMsg = document.getElementById('clientErrorMsg');
+
+        if (pwd !== confirmPwd) {
+          e.preventDefault();
+          if (alertBox && alertMsg) {
+            alertMsg.textContent = 'Passwords do not match. Please re-enter your password.';
+            alertBox.classList.remove('hidden');
+          }
+          return false;
+        }
+
+        const btn = document.getElementById('registerSubmitBtn');
+        if (btn) {
+          btn.querySelector('.btn-text').textContent = 'Creating account...';
+          btn.classList.add('loading');
+        }
+      });
+    }
+  </script>
 </body>
 </html>
