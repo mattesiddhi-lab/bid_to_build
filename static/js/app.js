@@ -87,20 +87,20 @@ const toastContainer = document.getElementById('toastContainer');
 // Initialization
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
-  setupEventListeners();
-  setupDashTabs();
-  setupUserTabs();
-  applyRole(state.currentRole);
+  try { setupEventListeners(); } catch (e) { console.error('Error in setupEventListeners:', e); }
+  try { setupDashTabs(); } catch (e) { console.error('Error in setupDashTabs:', e); }
+  try { setupUserTabs(); } catch (e) { console.error('Error in setupUserTabs:', e); }
+  try { applyRole(state.currentRole); } catch (e) { console.error('Error in applyRole:', e); }
 
   if (state.currentRole === 'admin') {
-    await loadWorkload();
-    await loadLocationSummary();
+    try { await loadWorkload(); } catch (e) { console.error('Error in loadWorkload:', e); }
+    try { await loadLocationSummary(); } catch (e) { console.error('Error in loadLocationSummary:', e); }
   } else {
-    await loadMyComplaints();
+    try { await loadMyComplaints(); } catch (e) { console.error('Error in loadMyComplaints:', e); }
   }
 
-  await loadStats();
-  await loadComplaints();
+  try { await loadStats(); } catch (e) { console.error('Error in loadStats:', e); }
+  try { await loadComplaints(); } catch (e) { console.error('Error in loadComplaints:', e); }
 });
 
 // ==========================================================================
@@ -227,14 +227,17 @@ async function loadWorkload() {
   try {
     const res = await fetch('/api/workload');
     if (res.ok) {
-      state.workload = await res.json();
-      state.workers = state.workload;
-      renderWorkload();
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        state.workload = await res.json();
+        state.workers = state.workload;
+        renderWorkload();
 
-      const badgeWorkload = document.getElementById('tabBadgeWorkload');
-      if (badgeWorkload) {
-        const overloaded = state.workload.filter(w => w.active_count >= 5).length;
-        badgeWorkload.textContent = overloaded > 0 ? `${overloaded} Overloaded` : `${state.workload.length} workers`;
+        const badgeWorkload = document.getElementById('tabBadgeWorkload');
+        if (badgeWorkload) {
+          const overloaded = state.workload.filter(w => w.active_count >= 5).length;
+          badgeWorkload.textContent = overloaded > 0 ? `${overloaded} Overloaded` : `${state.workload.length} workers`;
+        }
       }
     }
   } catch (err) {
@@ -299,12 +302,15 @@ async function loadLocationSummary() {
   try {
     const res = await fetch('/api/location-summary');
     if (res.ok) {
-      state.problemAreas = await res.json();
-      renderLocationSummary();
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        state.problemAreas = await res.json();
+        renderLocationSummary();
 
-      const badgeProblem = document.getElementById('tabBadgeProblemAreas');
-      if (badgeProblem) {
-        badgeProblem.textContent = `${state.problemAreas.length} Hotspots`;
+        const badgeProblem = document.getElementById('tabBadgeProblemAreas');
+        if (badgeProblem) {
+          badgeProblem.textContent = `${state.problemAreas.length} Hotspots`;
+        }
       }
     }
   } catch (err) {
@@ -391,8 +397,11 @@ async function loadStats() {
   try {
     const res = await fetch('/api/stats');
     if (res.ok) {
-      state.stats = await res.json();
-      updateStatsUI();
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        state.stats = await res.json();
+        updateStatsUI();
+      }
     }
   } catch (err) {
     console.error('Failed to load stats:', err);
@@ -443,6 +452,8 @@ function updateStatsUI() {
 }
 
 async function loadComplaints() {
+  if (!complaintsContainer) return;
+
   complaintsContainer.innerHTML = `
     <div class="loading-state">
       <div class="spinner"></div>
@@ -461,14 +472,41 @@ async function loadComplaints() {
 
     const res = await fetch(`/api/complaints?${params.toString()}`);
     if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('Non-JSON response received from server.');
+      }
       state.complaints = await res.json();
       renderComplaints();
     } else {
-      complaintsContainer.innerHTML = `<div class="empty-state"><p>Error loading complaints.</p></div>`;
+      let errorMsg = 'Error loading complaints.';
+      try {
+        const errorData = await res.json();
+        if (errorData && errorData.error) errorMsg = errorData.error;
+      } catch (_) {}
+      complaintsContainer.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">⚠️</div>
+          <p><strong>Failed to load complaints.</strong></p>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">${escapeHtml(errorMsg)}</p>
+          <button type="button" class="btn btn-primary btn-sm" onclick="loadComplaints()" style="margin-top: 0.85rem;">
+            🔄 Retry
+          </button>
+        </div>
+      `;
     }
   } catch (err) {
     console.error('Failed to load complaints:', err);
-    complaintsContainer.innerHTML = `<div class="empty-state"><p>Network error loading complaints.</p></div>`;
+    complaintsContainer.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">⚠️</div>
+        <p><strong>Network error loading complaints.</strong></p>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Please check your connection or try again.</p>
+        <button type="button" class="btn btn-primary btn-sm" onclick="loadComplaints()" style="margin-top: 0.85rem;">
+          🔄 Retry
+        </button>
+      </div>
+    `;
   }
 }
 
@@ -730,20 +768,54 @@ function formatReportDate(dateStr) {
 async function loadMyComplaints() {
   if (!myComplaintsContainer) return;
 
+  myComplaintsContainer.innerHTML = `
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading your complaints...</p>
+    </div>
+  `;
+
   try {
     const res = await fetch('/api/my-complaints');
     if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('Non-JSON response received from server.');
+      }
       state.myComplaints = await res.json();
       renderMyComplaints();
       if (myComplaintsBadge) {
         myComplaintsBadge.textContent = state.myComplaints.length;
       }
     } else {
-      myComplaintsContainer.innerHTML = `<div class="empty-state"><p>Failed to load your complaints.</p></div>`;
+      let errorMsg = 'Failed to load your complaints.';
+      try {
+        const errorData = await res.json();
+        if (errorData && errorData.error) errorMsg = errorData.error;
+      } catch (_) {}
+      myComplaintsContainer.innerHTML = `
+        <div class="empty-state my-empty-state">
+          <div class="empty-icon">⚠️</div>
+          <p><strong>Failed to load your complaints.</strong></p>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">${escapeHtml(errorMsg)}</p>
+          <button type="button" class="btn btn-primary btn-sm" onclick="loadMyComplaints()" style="margin-top: 0.85rem;">
+            🔄 Retry
+          </button>
+        </div>
+      `;
     }
   } catch (err) {
     console.error('Error fetching my complaints:', err);
-    myComplaintsContainer.innerHTML = `<div class="empty-state"><p>Network error loading your complaints.</p></div>`;
+    myComplaintsContainer.innerHTML = `
+      <div class="empty-state my-empty-state">
+        <div class="empty-icon">⚠️</div>
+        <p><strong>Network error loading your complaints.</strong></p>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Please check your connection or try again.</p>
+        <button type="button" class="btn btn-primary btn-sm" onclick="loadMyComplaints()" style="margin-top: 0.85rem;">
+          🔄 Retry
+        </button>
+      </div>
+    `;
   }
 }
 
@@ -1012,15 +1084,19 @@ function openPhotoModal(filename, title) {
   photoModal.classList.remove('hidden');
 }
 
-closePhotoModalBtn.addEventListener('click', () => {
-  photoModal.classList.add('hidden');
-});
+if (closePhotoModalBtn) {
+  closePhotoModalBtn.addEventListener('click', () => {
+    if (photoModal) photoModal.classList.add('hidden');
+  });
+}
 
-photoModal.addEventListener('click', (e) => {
-  if (e.target === photoModal) {
-    photoModal.classList.add('hidden');
-  }
-});
+if (photoModal) {
+  photoModal.addEventListener('click', (e) => {
+    if (e.target === photoModal) {
+      photoModal.classList.add('hidden');
+    }
+  });
+}
 
 // ==========================================================================
 // Issue History Modal (Admin view for recurring complaints)
@@ -1080,83 +1156,99 @@ async function openHistoryModal(complaintId) {
   }
 }
 
-closeHistoryModalBtn.addEventListener('click', () => {
-  historyModal.classList.add('hidden');
-});
+if (closeHistoryModalBtn) {
+  closeHistoryModalBtn.addEventListener('click', () => {
+    if (historyModal) historyModal.classList.add('hidden');
+  });
+}
 
-historyModal.addEventListener('click', (e) => {
-  if (e.target === historyModal) {
-    historyModal.classList.add('hidden');
-  }
-});
+if (historyModal) {
+  historyModal.addEventListener('click', (e) => {
+    if (e.target === historyModal) {
+      historyModal.classList.add('hidden');
+    }
+  });
+}
 
 // ==========================================================================
 // Filters & Interactive Dashboard Stat Cards
 // ==========================================================================
 function setupEventListeners() {
-  filterStatus.addEventListener('change', () => {
-    state.filters.status = filterStatus.value;
-    updateActiveStatCard();
-    loadComplaints();
-  });
-
-  filterPriority.addEventListener('change', () => {
-    state.filters.priority = filterPriority.value;
-    updateActiveStatCard();
-    loadComplaints();
-  });
-
-  filterCategory.addEventListener('change', () => {
-    state.filters.category = filterCategory.value;
-    loadComplaints();
-  });
-
-  let searchTimeout;
-  searchInput.addEventListener('input', () => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      state.filters.search = searchInput.value;
+  if (filterStatus) {
+    filterStatus.addEventListener('change', () => {
+      state.filters.status = filterStatus.value;
+      updateActiveStatCard();
       loadComplaints();
-    }, 250);
-  });
+    });
+  }
 
-  resetFiltersBtn.addEventListener('click', () => {
-    state.filters.status = 'All';
-    state.filters.priority = 'All';
-    state.filters.category = 'All';
-    state.filters.recurring = false;
-    state.filters.location = null;
-    state.filters.search = '';
+  if (filterPriority) {
+    filterPriority.addEventListener('change', () => {
+      state.filters.priority = filterPriority.value;
+      updateActiveStatCard();
+      loadComplaints();
+    });
+  }
 
-    filterStatus.value = 'All';
-    filterPriority.value = 'All';
-    filterCategory.value = 'All';
-    searchInput.value = '';
+  if (filterCategory) {
+    filterCategory.addEventListener('change', () => {
+      state.filters.category = filterCategory.value;
+      loadComplaints();
+    });
+  }
 
-    if (activeLocationFilterChip) {
-      activeLocationFilterChip.classList.add('hidden');
-    }
+  if (searchInput) {
+    let searchTimeout;
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        state.filters.search = searchInput.value;
+        loadComplaints();
+      }, 250);
+    });
+  }
 
-    if (state.currentRole === 'admin') {
-      renderLocationSummary();
-    }
-    updateActiveStatCard();
-    loadComplaints();
-  });
+  if (resetFiltersBtn) {
+    resetFiltersBtn.addEventListener('click', () => {
+      state.filters.status = 'All';
+      state.filters.priority = 'All';
+      state.filters.category = 'All';
+      state.filters.recurring = false;
+      state.filters.location = null;
+      state.filters.search = '';
+
+      if (filterStatus) filterStatus.value = 'All';
+      if (filterPriority) filterPriority.value = 'All';
+      if (filterCategory) filterCategory.value = 'All';
+      if (searchInput) searchInput.value = '';
+
+      if (activeLocationFilterChip) {
+        activeLocationFilterChip.classList.add('hidden');
+      }
+
+      if (state.currentRole === 'admin') {
+        renderLocationSummary();
+      }
+      updateActiveStatCard();
+      loadComplaints();
+    });
+  }
 
   if (clearLocationFilterBtn) {
     clearLocationFilterBtn.addEventListener('click', clearLocationFilter);
   }
 
-  refreshStatsBtn.addEventListener('click', async () => {
-    if (state.currentRole === 'admin') {
-      await loadWorkload();
-      await loadLocationSummary();
-    }
-    await loadStats();
-    await loadComplaints();
-    showToast('Refreshed data from server.', 'success');
-  });
+  if (refreshStatsBtn) {
+    refreshStatsBtn.addEventListener('click', async () => {
+      if (state.currentRole === 'admin') {
+        await loadWorkload();
+        await loadLocationSummary();
+      }
+      await loadStats();
+      await loadComplaints();
+      showToast('Refreshed data from server.', 'success');
+    });
+  }
 
   // Clicking status cards filters the list
   document.querySelectorAll('.stat-card[data-filter-status]').forEach(card => {
@@ -1164,10 +1256,10 @@ function setupEventListeners() {
       const targetStatus = card.getAttribute('data-filter-status');
       if (state.filters.status === targetStatus) {
         state.filters.status = 'All';
-        filterStatus.value = 'All';
+        if (filterStatus) filterStatus.value = 'All';
       } else {
         state.filters.status = targetStatus;
-        filterStatus.value = targetStatus;
+        if (filterStatus) filterStatus.value = targetStatus;
       }
       updateActiveStatCard();
       loadComplaints();
@@ -1180,10 +1272,10 @@ function setupEventListeners() {
       const targetPriority = card.getAttribute('data-filter-priority');
       if (state.filters.priority === targetPriority) {
         state.filters.priority = 'All';
-        filterPriority.value = 'All';
+        if (filterPriority) filterPriority.value = 'All';
       } else {
         state.filters.priority = targetPriority;
-        filterPriority.value = targetPriority;
+        if (filterPriority) filterPriority.value = targetPriority;
       }
       updateActiveStatCard();
       loadComplaints();
@@ -1258,3 +1350,5 @@ window.toggleLocationFilter = toggleLocationFilter;
 window.clearLocationFilter = clearLocationFilter;
 window.switchUserTab = switchUserTab;
 window.loadMyComplaints = loadMyComplaints;
+window.loadComplaints = loadComplaints;
+window.loadStats = loadStats;
