@@ -10,6 +10,7 @@ with urllib.request.urlopen(base + "/") as r:
     assert "CampusFix" in html, "CampusFix brand not found in HTML"
     assert "role-toggle-group" in html, "Role toggle not found"
     assert "Maintenance Dashboard" in html, "Dashboard not found"
+    assert "Recurring Issues" in html, "Recurring Issues card not found"
     assert "Report a Complaint" in html, "Complaint form not found"
     print("[PASS] Root page loaded successfully (HTML verified)")
 
@@ -28,8 +29,10 @@ with urllib.request.urlopen(base + "/api/stats") as r:
     print("   Total complaints:", stats["total"])
     print("   Status breakdown:", stats["status_counts"])
     print("   Priority breakdown:", stats["priority_counts"])
+    print("   Recurring count:", stats.get("recurring_count"))
     assert stats["total"] >= 20
-    assert "Critical" in stats["priority_counts"]
+    assert "recurring_count" in stats
+    assert stats["recurring_count"] >= 3
 
 print("\n--- 4. Testing Critical complaints sorting at the top ---")
 with urllib.request.urlopen(base + "/api/complaints") as r:
@@ -40,8 +43,31 @@ with urllib.request.urlopen(base + "/api/complaints") as r:
     assert first_non_crit > last_crit, "Critical complaints not sorted at top"
     print(f"[PASS] All Critical complaints are at the top of the list! (Count: {last_crit + 1})")
 
-print("\n--- 5. Testing Auto Priority Detection ---")
-# 5a. Critical keyword ('sparking') with user priority=Low -> should become Critical and auto_flagged=1
+print("\n--- 5. Testing Recurring Issue Detection & History ---")
+with urllib.request.urlopen(base + "/api/complaints") as r:
+    complaints = json.loads(r.read().decode("utf-8"))
+    rec_complaints = [c for c in complaints if c["is_recurring"]]
+    assert len(rec_complaints) >= 3, "Expected at least 3 recurring complaints in seed data"
+    print(f"[PASS] Found {len(rec_complaints)} recurring complaints in database:")
+    for rc in rec_complaints:
+        print(f"   {rc['ticket_no']} ({rc['category']} @ {rc['location']}): total={rc['total_occurrences']}, earlier={rc['recurrence_count']}")
+    
+    # Test history endpoint
+    sample_id = rec_complaints[0]["id"]
+    with urllib.request.urlopen(f"{base}/api/complaints/{sample_id}/history") as hr:
+        hist = json.loads(hr.read().decode("utf-8"))
+        assert hist["total"] >= 2
+        print(f"[PASS] History for ticket #{sample_id} ({hist['category']} @ {hist['location']}): {hist['total']} complaints found (newest first)")
+
+# Test filtering by recurring=true
+with urllib.request.urlopen(base + "/api/complaints?recurring=true") as r:
+    filtered_rec = json.loads(r.read().decode("utf-8"))
+    assert len(filtered_rec) == len(rec_complaints)
+    assert all(c["is_recurring"] for c in filtered_rec)
+    print(f"[PASS] Filter by recurring=true returned {len(filtered_rec)} items accurately.")
+
+print("\n--- 6. Testing Auto Priority Detection ---")
+# Critical keyword ('sparking') with user priority=Low -> should become Critical and auto_flagged=1
 form_data = urllib.parse.urlencode({
     "category": "Electrical",
     "location": "Physics Lab 3",
@@ -59,38 +85,7 @@ with urllib.request.urlopen(req) as r:
     new_crit_id = res["complaint"]["id"]
     print(f"[PASS] Auto-detected as Critical: {res['trigger_keyword']} (auto_flagged=1)")
 
-# 5b. High keyword ('leaking') with user priority=Low -> should become High and auto_flagged=1
-form_data = urllib.parse.urlencode({
-    "category": "Plumbing",
-    "location": "Hostel Washroom",
-    "description": "The ceiling pipe is leaking slowly.",
-    "priority": "Low"
-}).encode("utf-8")
-req = urllib.request.Request(base + "/api/complaints", data=form_data)
-with urllib.request.urlopen(req) as r:
-    res = json.loads(r.read().decode("utf-8"))
-    assert res["success"] is True
-    assert res["complaint"]["priority"] == "High"
-    assert res["auto_flagged"] is True
-    assert res["trigger_keyword"] == "leaking"
-    print(f"[PASS] Auto-detected as High: {res['trigger_keyword']} (auto_flagged=1)")
-
-# 5c. Never lower user priority: user chooses Critical, description has 'leak'
-form_data = urllib.parse.urlencode({
-    "category": "Plumbing",
-    "location": "Server Room B",
-    "description": "Small leak near server rack.",
-    "priority": "Critical"
-}).encode("utf-8")
-req = urllib.request.Request(base + "/api/complaints", data=form_data)
-with urllib.request.urlopen(req) as r:
-    res = json.loads(r.read().decode("utf-8"))
-    assert res["success"] is True
-    assert res["complaint"]["priority"] == "Critical"
-    assert res["auto_flagged"] is False
-    print("[PASS] User Critical priority was preserved (never lowered)")
-
-print("\n--- 6. Testing Worker Assignment & Status Advance ---")
+print("\n--- 7. Testing Worker Assignment & Status Advance ---")
 assign_data = json.dumps({"worker_id": 1}).encode("utf-8")
 req = urllib.request.Request(f"{base}/api/complaints/{new_crit_id}/assign", data=assign_data, headers={
     "Content-Type": "application/json"

@@ -11,11 +11,13 @@ const state = {
     status: 'All',
     priority: 'All',
     category: 'All',
+    recurring: false,
     search: ''
   },
   stats: {
     status_counts: { Reported: 0, Assigned: 0, 'In Progress': 0, Resolved: 0 },
     priority_counts: { Critical: 0, High: 0, Medium: 0, Low: 0 },
+    recurring_count: 0,
     total: 0
   }
 };
@@ -52,6 +54,13 @@ const modalFullImg = document.getElementById('modalFullImg');
 const photoModalTitle = document.getElementById('photoModalTitle');
 const photoModalCaption = document.getElementById('photoModalCaption');
 const closePhotoModalBtn = document.getElementById('closePhotoModalBtn');
+
+const historyModal = document.getElementById('historyModal');
+const closeHistoryModalBtn = document.getElementById('closeHistoryModalBtn');
+const historyListContainer = document.getElementById('historyListContainer');
+const historyModalTitle = document.getElementById('historyModalTitle');
+const historyModalSubtitle = document.getElementById('historyModalSubtitle');
+
 const toastContainer = document.getElementById('toastContainer');
 
 // ==========================================================================
@@ -124,7 +133,7 @@ async function loadStats() {
 }
 
 function updateStatsUI() {
-  const { status_counts, priority_counts, total } = state.stats;
+  const { status_counts, priority_counts, total, recurring_count } = state.stats;
 
   // Status counts
   document.getElementById('countReported').textContent = status_counts['Reported'] || 0;
@@ -137,6 +146,12 @@ function updateStatsUI() {
   document.getElementById('countHigh').textContent = priority_counts['High'] || 0;
   document.getElementById('countMedium').textContent = priority_counts['Medium'] || 0;
   document.getElementById('countLow').textContent = priority_counts['Low'] || 0;
+
+  // Recurring count
+  const recEl = document.getElementById('countRecurring');
+  if (recEl) {
+    recEl.textContent = recurring_count || 0;
+  }
 
   totalTicketsCount.textContent = total;
 }
@@ -154,6 +169,7 @@ async function loadComplaints() {
     if (state.filters.status !== 'All') params.append('status', state.filters.status);
     if (state.filters.priority !== 'All') params.append('priority', state.filters.priority);
     if (state.filters.category !== 'All') params.append('category', state.filters.category);
+    if (state.filters.recurring) params.append('recurring', 'true');
     if (state.filters.search.trim()) params.append('search', state.filters.search.trim());
 
     const res = await fetch(`/api/complaints?${params.toString()}`);
@@ -215,6 +231,9 @@ function renderComplaints() {
   const html = state.complaints.map(item => {
     const pBadge = priorityBadges[item.priority] || item.priority;
     const autoFlaggedBadge = item.auto_flagged ? '<span class="badge badge-auto-flagged">Auto-flagged</span>' : '';
+    const recurringBadge = item.is_recurring 
+      ? `<span class="badge badge-recurring" title="${item.recurrence_count} earlier complaints recorded">Recurring (${item.total_occurrences}x)</span>`
+      : '';
     const sBadge = statusBadges[item.status] || item.status;
     const catIcon = categoryIcons[item.category] || '🔧';
 
@@ -253,6 +272,11 @@ function renderComplaints() {
       `;
     }
 
+    // View history button (Admin mode on recurring cards)
+    const historyBtnMarkup = item.is_recurring
+      ? `<button class="btn btn-outline btn-sm" style="margin-right: 0.35rem;" onclick="openHistoryModal(${item.id})">📜 View history</button>`
+      : '';
+
     // Workflow indicator
     const workflowSteps = ['Reported', 'Assigned', 'In Progress', 'Resolved'];
     const currentIdx = workflowSteps.indexOf(item.status);
@@ -272,6 +296,7 @@ function renderComplaints() {
           <div class="badges-group">
             ${pBadge}
             ${autoFlaggedBadge}
+            ${recurringBadge}
             ${sBadge}
           </div>
         </div>
@@ -309,6 +334,7 @@ function renderComplaints() {
           </div>
 
           <div class="admin-workflow-box">
+            ${historyBtnMarkup}
             <div class="workflow-trail" style="margin-right: 0.5rem;">
               ${workflowTrail}
             </div>
@@ -495,6 +521,74 @@ photoModal.addEventListener('click', (e) => {
 });
 
 // ==========================================================================
+// Issue History Modal (Admin view for recurring complaints)
+// ==========================================================================
+async function openHistoryModal(complaintId) {
+  historyListContainer.innerHTML = `
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading issue history...</p>
+    </div>
+  `;
+  historyModal.classList.remove('hidden');
+
+  try {
+    const res = await fetch(`/api/complaints/${complaintId}/history`);
+    if (!res.ok) throw new Error('Failed to fetch history');
+
+    const data = await res.json();
+    historyModalTitle.textContent = `📜 Issue History: ${data.category}`;
+    historyModalSubtitle.textContent = `Location: ${data.location} (${data.total} total complaints recorded)`;
+
+    if (!data.history || data.history.length === 0) {
+      historyListContainer.innerHTML = `<div class="empty-state"><p>No previous complaints found.</p></div>`;
+      return;
+    }
+
+    const statusBadges = {
+      Reported: '<span class="badge badge-status-reported"><span class="stat-dot dot-reported"></span> Reported</span>',
+      Assigned: '<span class="badge badge-status-assigned"><span class="stat-dot dot-assigned"></span> Assigned</span>',
+      'In Progress': '<span class="badge badge-status-in-progress"><span class="stat-dot dot-inprogress"></span> In Progress</span>',
+      Resolved: '<span class="badge badge-status-resolved"><span class="stat-dot dot-resolved"></span> Resolved</span>'
+    };
+
+    historyListContainer.innerHTML = data.history.map(item => `
+      <div class="history-item">
+        <div class="history-item-header">
+          <div>
+            <span class="history-ticket-id">${item.ticket_no}</span>
+            <span class="history-date">📅 ${item.created_at.split(' ')[0]}</span>
+          </div>
+          <div>
+            ${statusBadges[item.status] || item.status}
+          </div>
+        </div>
+        <div class="history-desc">
+          ${escapeHtml(item.description)}
+        </div>
+        <div class="history-item-footer">
+          <span>Assigned: ${item.assigned_worker_name ? `👷‍♂️ <strong>${escapeHtml(item.assigned_worker_name)}</strong>` : '<em>Unassigned</em>'}</span>
+          <span style="font-size: 0.75rem; color: #94a3b8;">Priority: ${item.priority}</span>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    console.error('Error fetching issue history:', err);
+    historyListContainer.innerHTML = `<div class="empty-state"><p>Failed to load issue history.</p></div>`;
+  }
+}
+
+closeHistoryModalBtn.addEventListener('click', () => {
+  historyModal.classList.add('hidden');
+});
+
+historyModal.addEventListener('click', (e) => {
+  if (e.target === historyModal) {
+    historyModal.classList.add('hidden');
+  }
+});
+
+// ==========================================================================
 // Filters & Interactive Dashboard Stat Cards
 // ==========================================================================
 function setupEventListeners() {
@@ -531,6 +625,7 @@ function setupEventListeners() {
     state.filters.status = 'All';
     state.filters.priority = 'All';
     state.filters.category = 'All';
+    state.filters.recurring = false;
     state.filters.search = '';
 
     filterStatus.value = 'All';
@@ -579,6 +674,16 @@ function setupEventListeners() {
       loadComplaints();
     });
   });
+
+  // Clicking recurring issues card filters to recurring complaints only
+  const recurringCard = document.getElementById('recurringStatCard');
+  if (recurringCard) {
+    recurringCard.addEventListener('click', () => {
+      state.filters.recurring = !state.filters.recurring;
+      updateActiveStatCard();
+      loadComplaints();
+    });
+  }
 }
 
 function updateActiveStatCard() {
@@ -586,10 +691,14 @@ function updateActiveStatCard() {
     card.classList.remove('active-filter');
     const s = card.getAttribute('data-filter-status');
     const p = card.getAttribute('data-filter-priority');
+    const r = card.getAttribute('data-filter-recurring');
     if (s && s === state.filters.status) {
       card.classList.add('active-filter');
     }
     if (p && p === state.filters.priority) {
+      card.classList.add('active-filter');
+    }
+    if (r && state.filters.recurring) {
       card.classList.add('active-filter');
     }
   });
@@ -625,7 +734,8 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-// Expose modal handler globally for inline onclick
+// Expose modal handlers globally for inline onclick
 window.openPhotoModal = openPhotoModal;
+window.openHistoryModal = openHistoryModal;
 window.assignWorker = assignWorker;
 window.advanceStatus = advanceStatus;

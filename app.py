@@ -64,6 +64,13 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def normalize_location(loc):
+    """Normalize location string: strip, lowercase, collapse extra spaces."""
+    if not loc:
+        return ""
+    return " ".join(loc.strip().lower().split())
+
+
 def detect_priority(description, user_priority):
     """
     Scans description (case-insensitive) for keywords.
@@ -93,6 +100,34 @@ def detect_priority(description, user_priority):
             return user_priority, 0, None
 
     return user_priority, 0, None
+
+
+def get_recurrence_info(cursor):
+    """
+    Calculates recurrence metadata across all complaints in database:
+    - is_recurring (bool): True if there is at least one other earlier complaint with same category and normalized location
+    - recurrence_count (int): number of earlier matching complaints
+    - total_occurrences (int): total count of complaints with same category and normalized location
+    """
+    cursor.execute("SELECT id, category, location FROM complaints ORDER BY id ASC")
+    rows = cursor.fetchall()
+    groups = {}
+    for row in rows:
+        key = (row["category"].strip().lower(), normalize_location(row["location"]))
+        if key not in groups:
+            groups[key] = []
+        groups[key].append(row["id"])
+
+    info_map = {}
+    for key, ids in groups.items():
+        total = len(ids)
+        for idx, cid in enumerate(ids):
+            info_map[cid] = {
+                "is_recurring": idx > 0,
+                "recurrence_count": idx,
+                "total_occurrences": total,
+            }
+    return info_map
 
 
 def init_db(seed_if_empty=True):
@@ -165,23 +200,37 @@ def seed_data(conn):
     complaint_count = cursor.fetchone()[0]
 
     if complaint_count == 0:
-        # 20 realistic sample complaints across campus
+        # 20 realistic sample complaints across campus, including repeated locations for demo
         sample_complaints = [
+            # Location 1 (Plumbing at Hostel B - Ground Floor Restroom): 3 complaints
             (
                 "TKT-1001",
-                "Electrical",
-                "Science Block - Room 304",
-                "Sparking switchboard near chemical storage rack. Smells like burnt plastic.",
-                "Critical",
-                "Reported",
+                "Plumbing",
+                "Hostel B - Ground Floor Restroom",
+                "Drain clogged in shower stall with dirty water pooling.",
+                "Medium",
+                "Resolved",
+                2,  # Marcus Chen
                 None,
-                "sample_switchboard.svg",
                 0,
-                "2026-10-02 08:30:00",
-                "2026-10-02 08:30:00",
+                "2026-09-24 10:00:00",
+                "2026-09-25 12:00:00",
             ),
             (
                 "TKT-1002",
+                "Plumbing",
+                "Hostel B - Ground Floor Restroom",
+                "Flush tank valve leaking and water continuously running.",
+                "High",
+                "Resolved",
+                2,  # Marcus Chen
+                None,
+                0,
+                "2026-09-28 15:30:00",
+                "2026-09-29 11:00:00",
+            ),
+            (
+                "TKT-1003",
                 "Plumbing",
                 "Hostel B - Ground Floor Restroom",
                 "Main water inlet pipe ruptured. Heavy leakage flooding the corridor.",
@@ -193,8 +242,63 @@ def seed_data(conn):
                 "2026-10-01 14:15:00",
                 "2026-10-02 09:00:00",
             ),
+            # Location 2 (Electrical at Science Block - Room 304): 2 complaints
             (
-                "TKT-1003",
+                "TKT-1004",
+                "Electrical",
+                "Science Block - Room 304",
+                "Fume hood exhaust circuit breaker tripped twice under heavy lab load.",
+                "High",
+                "Resolved",
+                1,  # Rajesh Sharma
+                None,
+                0,
+                "2026-09-27 14:00:00",
+                "2026-09-28 10:00:00",
+            ),
+            (
+                "TKT-1005",
+                "Electrical",
+                "Science Block - Room 304",
+                "Sparking switchboard near chemical storage rack. Smells like burnt plastic.",
+                "Critical",
+                "Reported",
+                None,
+                "sample_switchboard.svg",
+                0,
+                "2026-10-02 08:30:00",
+                "2026-10-02 08:30:00",
+            ),
+            # Location 3 (Cleaning at Central Cafeteria - Waste Station B): 2 complaints
+            (
+                "TKT-1006",
+                "Cleaning",
+                "Central Cafeteria - Waste Station B",
+                "Grease trap overflow and discarded food trays stacking up on floor.",
+                "Medium",
+                "Resolved",
+                4,  # Sarah Jenkins
+                None,
+                0,
+                "2026-09-29 09:30:00",
+                "2026-09-30 08:00:00",
+            ),
+            (
+                "TKT-1007",
+                "Cleaning",
+                "Central Cafeteria - Waste Station B",
+                "Organic waste bins overflowing, attracting flies and creating foul odor.",
+                "High",
+                "In Progress",
+                4,  # Sarah Jenkins
+                None,
+                0,
+                "2026-10-02 07:45:00",
+                "2026-10-02 08:15:00",
+            ),
+            # Additional campus maintenance complaints
+            (
+                "TKT-1008",
                 "Furniture",
                 "Main Auditorium - Row H Seats 12-14",
                 "Cushioned seats completely unhinged and armrest bracket loose with sharp exposed edges.",
@@ -207,20 +311,7 @@ def seed_data(conn):
                 "2026-10-01 16:00:00",
             ),
             (
-                "TKT-1004",
-                "Cleaning",
-                "Central Cafeteria - Waste Station B",
-                "Organic waste bins overflowing, attracting flies and creating foul odor.",
-                "High",
-                "In Progress",
-                4,  # Sarah Jenkins
-                None,
-                0,
-                "2026-10-02 07:45:00",
-                "2026-10-02 08:15:00",
-            ),
-            (
-                "TKT-1005",
+                "TKT-1009",
                 "Electrical",
                 "Library - 2nd Floor Silent Zone",
                 "Flickering ballast on 3 ceiling light tubes causing buzzing noise and headache for students.",
@@ -233,7 +324,7 @@ def seed_data(conn):
                 "2026-10-01 12:00:00",
             ),
             (
-                "TKT-1006",
+                "TKT-1010",
                 "Plumbing",
                 "Engineering Hall - 3rd Floor Water Cooler",
                 "Drain clogged, water overflowing on floor right next to server room doorway.",
@@ -246,7 +337,7 @@ def seed_data(conn):
                 "2026-10-02 09:30:00",
             ),
             (
-                "TKT-1007",
+                "TKT-1011",
                 "Furniture",
                 "Classroom 102 - Lecture Pod",
                 "Instructor podium castor wheel snapped; unable to maneuver board.",
@@ -259,7 +350,7 @@ def seed_data(conn):
                 "2026-10-01 16:40:00",
             ),
             (
-                "TKT-1008",
+                "TKT-1012",
                 "Cleaning",
                 "Gymnasium - Changing Room",
                 "Spilled energy drinks and damp floors requiring machine scrubbing.",
@@ -272,7 +363,7 @@ def seed_data(conn):
                 "2026-09-30 08:30:00",
             ),
             (
-                "TKT-1009",
+                "TKT-1013",
                 "Other",
                 "North Gate - Security Booth",
                 "Boom barrier rubber dampener detached, metal gate slamming loudly.",
@@ -285,7 +376,7 @@ def seed_data(conn):
                 "2026-10-01 11:30:00",
             ),
             (
-                "TKT-1010",
+                "TKT-1014",
                 "Electrical",
                 "Computer Science Lab 3",
                 "Central 10kVA UPS tripping whenever entire batch powers on PCs.",
@@ -298,7 +389,7 @@ def seed_data(conn):
                 "2026-10-02 08:45:00",
             ),
             (
-                "TKT-1011",
+                "TKT-1015",
                 "Plumbing",
                 "Faculty Lounge - Restroom Sink",
                 "Slow continuous drip from chrome faucet aerator.",
@@ -311,7 +402,7 @@ def seed_data(conn):
                 "2026-09-28 17:00:00",
             ),
             (
-                "TKT-1012",
+                "TKT-1016",
                 "Cleaning",
                 "Student Activity Center - Courtyard",
                 "Packing materials and thermocol packaging left behind after club fair.",
@@ -324,7 +415,7 @@ def seed_data(conn):
                 "2026-10-02 07:15:00",
             ),
             (
-                "TKT-1013",
+                "TKT-1017",
                 "Furniture",
                 "Seminar Hall B - Stage Lectern",
                 "Wooden panel loose and goose-neck mic mount screws stripped.",
@@ -337,20 +428,7 @@ def seed_data(conn):
                 "2026-10-02 09:15:00",
             ),
             (
-                "TKT-1014",
-                "Other",
-                "Biotech Greenhouse - Vent #2",
-                "Motorized shutter jammed halfway; rain entering indoor plant bed.",
-                "High",
-                "Reported",
-                None,
-                None,
-                0,
-                "2026-10-02 06:50:00",
-                "2026-10-02 06:50:00",
-            ),
-            (
-                "TKT-1015",
+                "TKT-1018",
                 "Electrical",
                 "Hostel A - Stairwell 4th Floor Landing",
                 "Overhead emergency light fixture broken, stair landing is pitch black at night.",
@@ -363,7 +441,7 @@ def seed_data(conn):
                 "2026-10-02 07:30:00",
             ),
             (
-                "TKT-1016",
+                "TKT-1019",
                 "Plumbing",
                 "Chemistry Dept - Emergency Eyewash Station 1",
                 "Emergency pull valve stuck shut; low water pressure safety violation.",
@@ -374,45 +452,6 @@ def seed_data(conn):
                 0,
                 "2026-10-02 09:40:00",
                 "2026-10-02 09:40:00",
-            ),
-            (
-                "TKT-1017",
-                "Cleaning",
-                "Arts Building - Clay & Sculpture Studio",
-                "Thick dried gypsum and clay dust on floor, needs specialized wet vacuuming.",
-                "Low",
-                "Assigned",
-                4,  # Sarah Jenkins
-                None,
-                0,
-                "2026-10-01 17:00:00",
-                "2026-10-01 18:00:00",
-            ),
-            (
-                "TKT-1018",
-                "Furniture",
-                "Admin Block - Office 205",
-                "Filing cabinet drawer stuck on sliding rails with key stuck inside.",
-                "Low",
-                "Resolved",
-                3,  # David Miller
-                None,
-                0,
-                "2026-09-29 14:00:00",
-                "2026-09-30 11:00:00",
-            ),
-            (
-                "TKT-1019",
-                "Other",
-                "West Parking Lot - Pathway Lamp #6",
-                "Polycarbonate lens cracked after gusty wind, exposed wiring.",
-                "Medium",
-                "Reported",
-                None,
-                None,
-                0,
-                "2026-10-02 08:20:00",
-                "2026-10-02 08:20:00",
             ),
             (
                 "TKT-1020",
@@ -482,11 +521,16 @@ def get_stats():
         cursor.execute("SELECT COUNT(*) FROM complaints")
         total = cursor.fetchone()[0]
 
+        # Recurring count calculated at query time
+        rec_map = get_recurrence_info(cursor)
+        recurring_count = sum(1 for v in rec_map.values() if v["is_recurring"])
+
     return jsonify(
         {
             "status_counts": status_counts,
             "priority_counts": priority_counts,
             "total": total,
+            "recurring_count": recurring_count,
         }
     )
 
@@ -496,6 +540,7 @@ def get_complaints():
     status_filter = request.args.get("status")
     priority_filter = request.args.get("priority")
     category_filter = request.args.get("category")
+    recurring_filter = request.args.get("recurring")
     search_query = request.args.get("search")
 
     query = """
@@ -530,7 +575,7 @@ def get_complaints():
         term = f"%{search_query}%"
         params.extend([term, term, term])
 
-    # Rule 6: Critical complaints must appear at the top (sort by priority, then newest)
+    # Critical complaints appear at the top (sort by priority, then newest)
     query += """
         ORDER BY 
             CASE c.priority 
@@ -545,10 +590,80 @@ def get_complaints():
 
     with get_db() as conn:
         cursor = conn.cursor()
+        rec_map = get_recurrence_info(cursor)
         cursor.execute(query, params)
-        complaints = [dict(row) for row in cursor.fetchall()]
+        rows = cursor.fetchall()
+
+        complaints = []
+        for row in rows:
+            item = dict(row)
+            r_info = rec_map.get(
+                item["id"],
+                {"is_recurring": False, "recurrence_count": 0, "total_occurrences": 1},
+            )
+            item["is_recurring"] = r_info["is_recurring"]
+            item["recurrence_count"] = r_info["recurrence_count"]
+            item["total_occurrences"] = r_info["total_occurrences"]
+
+            # Filter recurring if requested
+            if recurring_filter in ["true", "1", "True"]:
+                if not item["is_recurring"]:
+                    continue
+
+            complaints.append(item)
 
     return jsonify(complaints)
+
+
+@app.route("/api/complaints/<int:complaint_id>/history", methods=["GET"])
+def get_complaint_history(complaint_id):
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, ticket_no, category, location FROM complaints WHERE id = ?",
+            (complaint_id,),
+        )
+        target = cursor.fetchone()
+        if not target:
+            return jsonify({"error": "Complaint not found"}), 404
+
+        target_cat = target["category"].strip().lower()
+        target_loc = normalize_location(target["location"])
+
+        cursor.execute(
+            """
+            SELECT 
+                c.id, c.ticket_no, c.category, c.location, c.description,
+                c.priority, c.status, c.assigned_worker_id, c.photo_filename,
+                c.auto_flagged, c.created_at, c.updated_at,
+                w.name AS assigned_worker_name,
+                w.role AS assigned_worker_role,
+                w.phone AS assigned_worker_phone
+            FROM complaints c
+            LEFT JOIN workers w ON c.assigned_worker_id = w.id
+            ORDER BY c.id DESC
+        """
+        )
+        all_rows = cursor.fetchall()
+
+        history = []
+        for row in all_rows:
+            if (
+                row["category"].strip().lower() == target_cat
+                and normalize_location(row["location"]) == target_loc
+            ):
+                history.append(dict(row))
+
+    return jsonify(
+        {
+            "target_id": complaint_id,
+            "target_ticket_no": target["ticket_no"],
+            "category": target["category"],
+            "location": target["location"],
+            "total": len(history),
+            "history": history,
+        }
+    )
 
 
 @app.route("/api/complaints", methods=["POST"])
@@ -616,6 +731,7 @@ def create_complaint():
         new_id = cursor.lastrowid
         conn.commit()
 
+        rec_map = get_recurrence_info(cursor)
         cursor.execute(
             """
             SELECT 
@@ -632,6 +748,13 @@ def create_complaint():
             (new_id,),
         )
         new_complaint = dict(cursor.fetchone())
+        r_info = rec_map.get(
+            new_id,
+            {"is_recurring": False, "recurrence_count": 0, "total_occurrences": 1},
+        )
+        new_complaint["is_recurring"] = r_info["is_recurring"]
+        new_complaint["recurrence_count"] = r_info["recurrence_count"]
+        new_complaint["total_occurrences"] = r_info["total_occurrences"]
 
     return (
         jsonify(
@@ -682,6 +805,7 @@ def assign_worker(complaint_id):
         )
         conn.commit()
 
+        rec_map = get_recurrence_info(cursor)
         cursor.execute(
             """
             SELECT 
@@ -699,6 +823,13 @@ def assign_worker(complaint_id):
             (complaint_id,),
         )
         updated = dict(cursor.fetchone())
+        r_info = rec_map.get(
+            complaint_id,
+            {"is_recurring": False, "recurrence_count": 0, "total_occurrences": 1},
+        )
+        updated["is_recurring"] = r_info["is_recurring"]
+        updated["recurrence_count"] = r_info["recurrence_count"]
+        updated["total_occurrences"] = r_info["total_occurrences"]
 
     return jsonify({"success": True, "complaint": updated})
 
@@ -728,6 +859,7 @@ def advance_status(complaint_id):
         )
         conn.commit()
 
+        rec_map = get_recurrence_info(cursor)
         cursor.execute(
             """
             SELECT 
@@ -745,6 +877,13 @@ def advance_status(complaint_id):
             (complaint_id,),
         )
         updated = dict(cursor.fetchone())
+        r_info = rec_map.get(
+            complaint_id,
+            {"is_recurring": False, "recurrence_count": 0, "total_occurrences": 1},
+        )
+        updated["is_recurring"] = r_info["is_recurring"]
+        updated["recurrence_count"] = r_info["recurrence_count"]
+        updated["total_occurrences"] = r_info["total_occurrences"]
 
     return jsonify({"success": True, "complaint": updated})
 

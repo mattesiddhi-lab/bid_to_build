@@ -360,6 +360,7 @@ body {
 .dot-high { background-color: var(--high-solid); }
 .dot-medium { background-color: var(--med-solid); }
 .dot-low { background-color: var(--low-solid); }
+.dot-recurring { background-color: #9333ea; }
 
 .pulse-indicator {
   width: 10px;
@@ -391,12 +392,14 @@ body {
 .text-high { color: var(--high-solid); }
 .text-medium { color: var(--med-solid); }
 .text-low { color: var(--low-solid); }
+.text-recurring { color: #9333ea; }
 
 /* Priority card subtle backgrounds */
 .priority-card.critical { border-left: 4px solid var(--crit-solid); }
 .priority-card.high { border-left: 4px solid var(--high-solid); }
 .priority-card.medium { border-left: 4px solid var(--med-solid); }
 .priority-card.low { border-left: 4px solid var(--low-solid); }
+.recurring-card { border-left: 4px solid #9333ea; }
 
 .status-card.reported { border-left: 4px solid var(--stat-reported-dot); }
 .status-card.assigned { border-left: 4px solid var(--stat-assigned-dot); }
@@ -861,6 +864,19 @@ textarea.form-control {
   gap: 0.2rem;
 }
 
+.badge-recurring {
+  background: #f3e8ff;
+  color: #7e22ce;
+  border: 1px solid #d8b4fe;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.45rem;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
 /* Status Badges */
 .badge-status-reported {
   background: var(--stat-reported-bg);
@@ -1172,4 +1188,66 @@ body.mode-user .admin-action-bar {
 @keyframes toast-slide {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
+}
+
+/* ==========================================================================
+   History Modal (Recurring Complaints)
+   ========================================================================== */
+.history-modal-box {
+  max-width: 680px;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 0.35rem;
+}
+
+.history-item {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+}
+
+.history-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.history-ticket-id {
+  font-weight: 700;
+  font-size: 0.825rem;
+  color: var(--text-main);
+  background: #e2e8f0;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+.history-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.history-desc {
+  font-size: 0.85rem;
+  color: #334155;
+  margin-bottom: 0.5rem;
+}
+
+.history-item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.775rem;
+  color: var(--text-muted);
+  border-top: 1px dashed var(--border);
+  padding-top: 0.4rem;
 }

@@ -140,6 +140,21 @@
           </div>
         </div>
       </div>
+
+      <!-- Recurring Issues Count Card -->
+      <div class="stats-group">
+        <h3 class="group-label">Recurrence Analysis</h3>
+        <div class="stats-grid recurring-stats-grid">
+          <div class="stat-card recurring-card" id="recurringStatCard" data-filter-recurring="true" title="Click to filter recurring complaints only">
+            <div class="stat-header">
+              <span class="stat-dot dot-recurring"></span>
+              <span class="stat-title">Recurring Issues</span>
+            </div>
+            <div class="stat-value text-recurring" id="countRecurring">0</div>
+            <div class="stat-desc">Repeated complaints at same location & category (click to filter)</div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- CONTENT LAYOUT: User form on left/top, Complaints on right/bottom -->
@@ -327,6 +342,22 @@
       <div class="modal-body text-center">
         <img id="modalFullImg" class="modal-img" src="" alt="Complaint photo">
         <p class="photo-caption" id="photoModalCaption"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Modal (Admin view for recurring issues) -->
+  <div class="modal-backdrop hidden" id="historyModal">
+    <div class="modal-content history-modal-box">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="historyModalTitle">📜 Issue History</h3>
+          <p class="modal-subtitle" id="historyModalSubtitle">All logged complaints for this location and category</p>
+        </div>
+        <button class="modal-close-btn" id="closeHistoryModalBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="historyListContainer" class="history-list"></div>
       </div>
     </div>
   </div>
