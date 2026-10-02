@@ -7,12 +7,14 @@ const state = {
   currentRole: localStorage.getItem('campusfix_role') || 'user', // 'user' or 'admin'
   workers: [],
   workload: [],
+  problemAreas: [],
   complaints: [],
   filters: {
     status: 'All',
     priority: 'All',
     category: 'All',
     recurring: false,
+    location: null,
     search: ''
   },
   stats: {
@@ -49,6 +51,12 @@ const searchInput = document.getElementById('searchInput');
 const resetFiltersBtn = document.getElementById('resetFiltersBtn');
 const refreshStatsBtn = document.getElementById('refreshStatsBtn');
 
+// Problem Areas Elements
+const problemAreasContainer = document.getElementById('problemAreasContainer');
+const activeLocationFilterChip = document.getElementById('activeLocationFilterChip');
+const filterLocationName = document.getElementById('filterLocationName');
+const clearLocationFilterBtn = document.getElementById('clearLocationFilterBtn');
+
 // Modals & Toasts
 const photoModal = document.getElementById('photoModal');
 const modalFullImg = document.getElementById('modalFullImg');
@@ -71,6 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
   applyRole(state.currentRole);
   await loadWorkload();
+  await loadLocationSummary();
   await loadStats();
   await loadComplaints();
 });
@@ -176,6 +185,93 @@ function renderWorkload() {
   }).join('');
 }
 
+async function loadLocationSummary() {
+  try {
+    const res = await fetch('/api/location-summary');
+    if (res.ok) {
+      state.problemAreas = await res.json();
+      renderLocationSummary();
+    }
+  } catch (err) {
+    console.error('Failed to load location summary:', err);
+  }
+}
+
+function renderLocationSummary() {
+  if (!problemAreasContainer) return;
+
+  if (!state.problemAreas || state.problemAreas.length === 0) {
+    problemAreasContainer.innerHTML = `<div class="empty-state"><p>No location data available.</p></div>`;
+    return;
+  }
+
+  const categoryIcons = {
+    Electrical: '⚡',
+    Plumbing: '🚰',
+    Furniture: '🪑',
+    Cleaning: '🧹',
+    Other: '📦'
+  };
+
+  const normActiveLoc = state.filters.location ? state.filters.location.trim().toLowerCase() : null;
+
+  problemAreasContainer.innerHTML = state.problemAreas.map(item => {
+    const isHotspot = item.is_hotspot;
+    const catIcon = categoryIcons[item.most_common_category] || '🔧';
+    const isSelected = normActiveLoc && normActiveLoc === item.normalized_location;
+    const rowClass = isSelected ? 'problem-area-row active-location-filter' : 'problem-area-row';
+    const rankClass = isHotspot ? 'problem-rank-badge rank-1' : 'problem-rank-badge';
+    const hotspotBadge = isHotspot ? '<span class="badge-hotspot">🔥 Hotspot</span>' : '';
+    const barClass = isHotspot ? 'problem-bar-fill bar-hotspot' : 'problem-bar-fill';
+
+    return `
+      <div class="${rowClass}" onclick="toggleLocationFilter('${escapeHtml(item.location)}')" title="Click to filter complaints for ${escapeHtml(item.location)}">
+        <div class="problem-area-top">
+          <div class="problem-area-title-wrap">
+            <span class="${rankClass}">#${item.rank}</span>
+            <span class="problem-area-name">${escapeHtml(item.location)}</span>
+            ${hotspotBadge}
+          </div>
+
+          <div class="problem-area-stats">
+            <span class="problem-stat-pill stat-total"><strong>${item.total_complaints}</strong> total</span>
+            <span class="problem-stat-pill stat-unresolved"><strong>${item.unresolved_complaints}</strong> unresolved</span>
+            <span class="problem-stat-pill stat-critical"><strong>${item.critical_complaints}</strong> critical</span>
+            <span class="problem-stat-pill stat-category">${catIcon} ${escapeHtml(item.most_common_category)}</span>
+          </div>
+        </div>
+
+        <div class="problem-bar-track" title="${item.percentage}% of max complaints (${item.total_complaints})">
+          <div class="${barClass}" style="width: ${item.percentage}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleLocationFilter(location) {
+  if (state.filters.location && state.filters.location.trim().toLowerCase() === location.trim().toLowerCase()) {
+    clearLocationFilter();
+  } else {
+    state.filters.location = location;
+    if (activeLocationFilterChip && filterLocationName) {
+      filterLocationName.textContent = location;
+      activeLocationFilterChip.classList.remove('hidden');
+    }
+    renderLocationSummary();
+    loadComplaints();
+  }
+}
+
+function clearLocationFilter() {
+  state.filters.location = null;
+  if (activeLocationFilterChip) {
+    activeLocationFilterChip.classList.add('hidden');
+  }
+  renderLocationSummary();
+  loadComplaints();
+}
+
 async function loadStats() {
   try {
     const res = await fetch('/api/stats');
@@ -226,6 +322,7 @@ async function loadComplaints() {
     if (state.filters.priority !== 'All') params.append('priority', state.filters.priority);
     if (state.filters.category !== 'All') params.append('category', state.filters.category);
     if (state.filters.recurring) params.append('recurring', 'true');
+    if (state.filters.location) params.append('location', state.filters.location);
     if (state.filters.search.trim()) params.append('search', state.filters.search.trim());
 
     const res = await fetch(`/api/complaints?${params.toString()}`);
@@ -433,6 +530,7 @@ async function assignWorker(complaintId) {
     if (res.ok && data.success) {
       showToast(`Assigned to ${data.complaint.assigned_worker_name}. Status: ${data.complaint.status}`, 'success');
       await loadWorkload();
+      await loadLocationSummary();
       await loadStats();
       await loadComplaints();
     } else {
@@ -455,6 +553,7 @@ async function advanceStatus(complaintId) {
     if (res.ok && data.success) {
       showToast(`Status updated to: ${data.complaint.status}`, 'success');
       await loadWorkload();
+      await loadLocationSummary();
       await loadStats();
       await loadComplaints();
     } else {
@@ -497,6 +596,7 @@ complaintForm.addEventListener('submit', async (e) => {
       if (lowRadio) lowRadio.checked = true;
 
       await loadWorkload();
+      await loadLocationSummary();
       await loadStats();
       await loadComplaints();
     } else {
@@ -691,6 +791,7 @@ function setupEventListeners() {
     state.filters.priority = 'All';
     state.filters.category = 'All';
     state.filters.recurring = false;
+    state.filters.location = null;
     state.filters.search = '';
 
     filterStatus.value = 'All';
@@ -698,12 +799,22 @@ function setupEventListeners() {
     filterCategory.value = 'All';
     searchInput.value = '';
 
+    if (activeLocationFilterChip) {
+      activeLocationFilterChip.classList.add('hidden');
+    }
+
+    renderLocationSummary();
     updateActiveStatCard();
     loadComplaints();
   });
 
+  if (clearLocationFilterBtn) {
+    clearLocationFilterBtn.addEventListener('click', clearLocationFilter);
+  }
+
   refreshStatsBtn.addEventListener('click', async () => {
     await loadWorkload();
+    await loadLocationSummary();
     await loadStats();
     await loadComplaints();
     showToast('Refreshed data from server.', 'success');
@@ -800,8 +911,10 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-// Expose modal handlers globally for inline onclick
+// Expose handlers globally for inline onclick
 window.openPhotoModal = openPhotoModal;
 window.openHistoryModal = openHistoryModal;
 window.assignWorker = assignWorker;
 window.advanceStatus = advanceStatus;
+window.toggleLocationFilter = toggleLocationFilter;
+window.clearLocationFilter = clearLocationFilter;

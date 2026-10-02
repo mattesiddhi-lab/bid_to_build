@@ -1393,3 +1393,190 @@ body.mode-user .admin-action-bar {
   border-top: 1px dashed var(--border);
   padding-top: 0.4rem;
 }
+
+/* ==========================================================================
+   Problem Areas (Ranked Location Summary)
+   ========================================================================== */
+.problem-areas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.location-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 500;
+  animation: fadeIn 0.2s ease;
+}
+
+.btn-clear-location {
+  background: #dbeafe;
+  border: none;
+  color: #1e40af;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-clear-location:hover {
+  background: #bfdbfe;
+  color: #1e3a8a;
+}
+
+.problem-areas-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.problem-area-row {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.problem-area-row:hover {
+  border-color: #93c5fd;
+  box-shadow: var(--shadow-sm);
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+
+.problem-area-row.active-location-filter {
+  border-color: var(--primary-600);
+  background: #f0f7ff;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+}
+
+.problem-area-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.problem-area-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.problem-rank-badge {
+  font-weight: 700;
+  font-size: 0.775rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: #f1f5f9;
+  color: var(--text-muted);
+}
+
+.problem-rank-badge.rank-1 {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.problem-area-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.badge-hotspot {
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.problem-area-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  font-size: 0.775rem;
+}
+
+.problem-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #f1f5f9;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  color: #334155;
+  font-weight: 500;
+}
+
+.problem-stat-pill.stat-total {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-weight: 600;
+}
+
+.problem-stat-pill.stat-unresolved {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.problem-stat-pill.stat-critical {
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 600;
+}
+
+.problem-stat-pill.stat-category {
+  background: #f3e8ff;
+  color: #6b21a8;
+}
+
+.problem-bar-track {
+  height: 6px;
+  width: 100%;
+  background: #f1f5f9;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-top: 0.15rem;
+}
+
+.problem-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, #38bdf8, #0284c7);
+  transition: width 0.4s ease;
+}
+
+.problem-bar-fill.bar-hotspot {
+  background: linear-gradient(90deg, #f97316, #ef4444);
+}
+

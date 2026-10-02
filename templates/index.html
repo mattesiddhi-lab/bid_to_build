@@ -166,6 +166,23 @@
           </div>
         </div>
       </div>
+
+      <!-- Problem Areas Section (Admin mode only) -->
+      <div class="stats-group admin-only-section" id="problemAreasSection">
+        <div class="problem-areas-header">
+          <h3 class="group-label">📍 Problem Areas</h3>
+          <div id="activeLocationFilterChip" class="location-filter-chip hidden">
+            <span>Filtered by location: <strong id="filterLocationName"></strong></span>
+            <button type="button" class="btn-clear-location" id="clearLocationFilterBtn" title="Clear location filter">Clear filter &times;</button>
+          </div>
+        </div>
+        <div class="problem-areas-container" id="problemAreasContainer">
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading problem areas...</p>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- CONTENT LAYOUT: User form on left/top, Complaints on right/bottom -->

@@ -200,9 +200,9 @@ def seed_data(conn):
     complaint_count = cursor.fetchone()[0]
 
     if complaint_count == 0:
-        # 20 realistic sample complaints across campus, including repeated locations for demo
+        # 20 realistic sample complaints across campus, structured with top problem areas
         sample_complaints = [
-            # Location 1 (Plumbing at Hostel B - Ground Floor Restroom): 3 complaints
+            # Location 1: Hostel B - Ground Floor Restroom (4 complaints - Hotspot)
             (
                 "TKT-1001",
                 "Plumbing",
@@ -242,9 +242,22 @@ def seed_data(conn):
                 "2026-10-01 14:15:00",
                 "2026-10-02 09:00:00",
             ),
-            # Location 2 (Electrical at Science Block - Room 304): 2 complaints
             (
                 "TKT-1004",
+                "Plumbing",
+                "Hostel B - Ground Floor Restroom",
+                "Exhaust ventilation broken and ceiling water dripping.",
+                "Medium",
+                "In Progress",
+                2,  # Marcus Chen
+                None,
+                0,
+                "2026-10-02 07:30:00",
+                "2026-10-02 08:30:00",
+            ),
+            # Location 2: Science Block - Room 304 (3 complaints)
+            (
+                "TKT-1005",
                 "Electrical",
                 "Science Block - Room 304",
                 "Fume hood exhaust circuit breaker tripped twice under heavy lab load.",
@@ -257,7 +270,7 @@ def seed_data(conn):
                 "2026-09-28 10:00:00",
             ),
             (
-                "TKT-1005",
+                "TKT-1006",
                 "Electrical",
                 "Science Block - Room 304",
                 "Sparking switchboard near chemical storage rack. Smells like burnt plastic.",
@@ -269,9 +282,22 @@ def seed_data(conn):
                 "2026-10-02 08:30:00",
                 "2026-10-02 08:30:00",
             ),
-            # Location 3 (Cleaning at Central Cafeteria - Waste Station B): 2 complaints
             (
-                "TKT-1006",
+                "TKT-1007",
+                "Electrical",
+                "Science Block - Room 304",
+                "Exposed wiring hanging beneath lab workbench 4.",
+                "Critical",
+                "In Progress",
+                1,  # Rajesh Sharma
+                None,
+                0,
+                "2026-10-02 09:00:00",
+                "2026-10-02 09:15:00",
+            ),
+            # Location 3: Central Cafeteria - Waste Station B (3 complaints)
+            (
+                "TKT-1008",
                 "Cleaning",
                 "Central Cafeteria - Waste Station B",
                 "Grease trap overflow and discarded food trays stacking up on floor.",
@@ -284,7 +310,7 @@ def seed_data(conn):
                 "2026-09-30 08:00:00",
             ),
             (
-                "TKT-1007",
+                "TKT-1009",
                 "Cleaning",
                 "Central Cafeteria - Waste Station B",
                 "Organic waste bins overflowing, attracting flies and creating foul odor.",
@@ -296,87 +322,22 @@ def seed_data(conn):
                 "2026-10-02 07:45:00",
                 "2026-10-02 08:15:00",
             ),
-            # Additional campus maintenance complaints
-            (
-                "TKT-1008",
-                "Furniture",
-                "Main Auditorium - Row H Seats 12-14",
-                "Cushioned seats completely unhinged and armrest bracket loose with sharp exposed edges.",
-                "Medium",
-                "Assigned",
-                3,  # David Miller
-                "sample_broken_seat.svg",
-                0,
-                "2026-10-01 11:20:00",
-                "2026-10-01 16:00:00",
-            ),
-            (
-                "TKT-1009",
-                "Electrical",
-                "Library - 2nd Floor Silent Zone",
-                "Flickering ballast on 3 ceiling light tubes causing buzzing noise and headache for students.",
-                "Medium",
-                "Assigned",
-                1,  # Rajesh Sharma
-                None,
-                0,
-                "2026-09-30 10:10:00",
-                "2026-10-01 12:00:00",
-            ),
             (
                 "TKT-1010",
-                "Plumbing",
-                "Engineering Hall - 3rd Floor Water Cooler",
-                "Drain clogged, water overflowing on floor right next to server room doorway.",
-                "Critical",
-                "Assigned",
-                2,  # Marcus Chen
+                "Cleaning",
+                "Central Cafeteria - Waste Station B",
+                "Slippery oil spill near tray return conveyor.",
+                "High",
+                "Reported",
+                None,
                 None,
                 0,
-                "2026-10-02 09:10:00",
-                "2026-10-02 09:30:00",
+                "2026-10-02 08:50:00",
+                "2026-10-02 08:50:00",
             ),
+            # Location 4: Computer Science Lab 3 (2 complaints)
             (
                 "TKT-1011",
-                "Furniture",
-                "Classroom 102 - Lecture Pod",
-                "Instructor podium castor wheel snapped; unable to maneuver board.",
-                "Low",
-                "Reported",
-                None,
-                None,
-                0,
-                "2026-10-01 16:40:00",
-                "2026-10-01 16:40:00",
-            ),
-            (
-                "TKT-1012",
-                "Cleaning",
-                "Gymnasium - Changing Room",
-                "Spilled energy drinks and damp floors requiring machine scrubbing.",
-                "Medium",
-                "Resolved",
-                4,  # Sarah Jenkins
-                None,
-                0,
-                "2026-09-29 18:00:00",
-                "2026-09-30 08:30:00",
-            ),
-            (
-                "TKT-1013",
-                "Other",
-                "North Gate - Security Booth",
-                "Boom barrier rubber dampener detached, metal gate slamming loudly.",
-                "Low",
-                "Reported",
-                None,
-                None,
-                0,
-                "2026-10-01 09:00:00",
-                "2026-10-01 11:30:00",
-            ),
-            (
-                "TKT-1014",
                 "Electrical",
                 "Computer Science Lab 3",
                 "Central 10kVA UPS tripping whenever entire batch powers on PCs.",
@@ -389,59 +350,114 @@ def seed_data(conn):
                 "2026-10-02 08:45:00",
             ),
             (
-                "TKT-1015",
-                "Plumbing",
-                "Faculty Lounge - Restroom Sink",
-                "Slow continuous drip from chrome faucet aerator.",
-                "Low",
-                "Resolved",
-                2,  # Marcus Chen
+                "TKT-1012",
+                "Electrical",
+                "Computer Science Lab 3",
+                "Server rack cooling fan stopped spinning, temperature alarm beeping.",
+                "High",
+                "Assigned",
+                1,  # Rajesh Sharma
                 None,
                 0,
-                "2026-09-28 11:00:00",
-                "2026-09-28 17:00:00",
+                "2026-10-02 08:15:00",
+                "2026-10-02 08:45:00",
+            ),
+            # Location 5: Library - 2nd Floor Silent Zone (2 complaints)
+            (
+                "TKT-1013",
+                "Electrical",
+                "Library - 2nd Floor Silent Zone",
+                "Flickering ballast on 3 ceiling light tubes causing buzzing noise.",
+                "Medium",
+                "Assigned",
+                1,  # Rajesh Sharma
+                None,
+                0,
+                "2026-09-30 10:10:00",
+                "2026-10-01 12:00:00",
+            ),
+            (
+                "TKT-1014",
+                "Furniture",
+                "Library - 2nd Floor Silent Zone",
+                "Study carrel divider broken and wobbly partition.",
+                "Low",
+                "Resolved",
+                3,  # David Miller
+                None,
+                0,
+                "2026-09-28 14:00:00",
+                "2026-09-29 16:00:00",
+            ),
+            # Location 6: Main Auditorium - Row H Seats 12-14 (2 complaints)
+            (
+                "TKT-1015",
+                "Furniture",
+                "Main Auditorium - Row H Seats 12-14",
+                "Cushioned seats completely unhinged and armrest bracket loose with sharp exposed edges.",
+                "Medium",
+                "Assigned",
+                3,  # David Miller
+                "sample_broken_seat.svg",
+                0,
+                "2026-10-01 11:20:00",
+                "2026-10-01 16:00:00",
             ),
             (
                 "TKT-1016",
-                "Cleaning",
-                "Student Activity Center - Courtyard",
-                "Packing materials and thermocol packaging left behind after club fair.",
-                "Medium",
-                "Reported",
-                None,
-                None,
-                0,
-                "2026-10-02 07:15:00",
-                "2026-10-02 07:15:00",
-            ),
-            (
-                "TKT-1017",
                 "Furniture",
-                "Seminar Hall B - Stage Lectern",
-                "Wooden panel loose and goose-neck mic mount screws stripped.",
-                "High",
+                "Main Auditorium - Row H Seats 12-14",
+                "Row folding mechanism jammed shut.",
+                "Low",
                 "In Progress",
                 3,  # David Miller
                 None,
                 0,
-                "2026-10-01 15:30:00",
-                "2026-10-02 09:15:00",
+                "2026-10-02 09:10:00",
+                "2026-10-02 09:30:00",
+            ),
+            # Additional campus maintenance complaints (1 each)
+            (
+                "TKT-1017",
+                "Plumbing",
+                "Engineering Hall - 3rd Floor Water Cooler",
+                "Drain clogged, water overflowing on floor right next to server room doorway.",
+                "Critical",
+                "Reported",
+                None,
+                None,
+                0,
+                "2026-10-02 09:10:00",
+                "2026-10-02 09:30:00",
             ),
             (
                 "TKT-1018",
-                "Electrical",
-                "Hostel A - Stairwell 4th Floor Landing",
-                "Overhead emergency light fixture broken, stair landing is pitch black at night.",
-                "High",
-                "Assigned",
-                1,  # Rajesh Sharma
-                "sample_hallway_light.svg",
+                "Cleaning",
+                "Gymnasium - Changing Room",
+                "Spilled energy drinks and damp floors requiring machine scrubbing.",
+                "Medium",
+                "Resolved",
+                4,  # Sarah Jenkins
+                None,
                 0,
-                "2026-10-01 21:00:00",
-                "2026-10-02 07:30:00",
+                "2026-09-29 18:00:00",
+                "2026-09-30 08:30:00",
             ),
             (
                 "TKT-1019",
+                "Other",
+                "North Gate - Security Booth",
+                "Boom barrier rubber dampener detached, metal gate slamming loudly.",
+                "Low",
+                "Reported",
+                None,
+                None,
+                0,
+                "2026-10-01 09:00:00",
+                "2026-10-01 11:30:00",
+            ),
+            (
+                "TKT-1020",
                 "Plumbing",
                 "Chemistry Dept - Emergency Eyewash Station 1",
                 "Emergency pull valve stuck shut; low water pressure safety violation.",
@@ -452,19 +468,6 @@ def seed_data(conn):
                 0,
                 "2026-10-02 09:40:00",
                 "2026-10-02 09:40:00",
-            ),
-            (
-                "TKT-1020",
-                "Electrical",
-                "Mechanical Workshop - Central Lathe Unit",
-                "Emergency stop circuit cut out during heavy milling run.",
-                "Critical",
-                "Resolved",
-                1,  # Rajesh Sharma
-                None,
-                0,
-                "2026-09-30 13:00:00",
-                "2026-10-01 10:00:00",
             ),
         ]
 
@@ -528,6 +531,99 @@ def get_workload():
     return jsonify(workers)
 
 
+@app.route("/api/location-summary", methods=["GET"])
+def get_location_summary():
+    """
+    Groups complaints by location (case-insensitive, ignoring extra spaces)
+    and returns top 6 locations with:
+    - location: canonical display name
+    - normalized_location: normalized location string
+    - total_complaints: total complaints count
+    - unresolved_complaints: complaints with status != 'Resolved'
+    - critical_complaints: complaints with priority == 'Critical'
+    - most_common_category: category with most complaints in this location
+    - percentage: relative percentage compared to #1 highest count
+    - is_hotspot: True for rank 1
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, category, location, priority, status FROM complaints"
+        )
+        rows = cursor.fetchall()
+
+    if not rows:
+        return jsonify([])
+
+    groups = {}
+    for row in rows:
+        loc_str = (row["location"] or "").strip()
+        norm_key = normalize_location(loc_str)
+        if not norm_key:
+            continue
+
+        if norm_key not in groups:
+            groups[norm_key] = {
+                "display_name": loc_str,
+                "normalized_location": norm_key,
+                "total_complaints": 0,
+                "unresolved_complaints": 0,
+                "critical_complaints": 0,
+                "categories": {},
+            }
+
+        g = groups[norm_key]
+        g["total_complaints"] += 1
+        if row["status"] != "Resolved":
+            g["unresolved_complaints"] += 1
+        if row["priority"] == "Critical":
+            g["critical_complaints"] += 1
+
+        cat = row["category"] or "Other"
+        g["categories"][cat] = g["categories"].get(cat, 0) + 1
+
+    # Convert groups to list and calculate most common category
+    summary_list = []
+    for norm_key, data in groups.items():
+        # Find most common category
+        best_cat = "Other"
+        best_cat_count = -1
+        for cat, cnt in data["categories"].items():
+            if cnt > best_cat_count:
+                best_cat_count = cnt
+                best_cat = cat
+
+        summary_list.append(
+            {
+                "location": data["display_name"],
+                "normalized_location": norm_key,
+                "total_complaints": data["total_complaints"],
+                "unresolved_complaints": data["unresolved_complaints"],
+                "critical_complaints": data["critical_complaints"],
+                "most_common_category": best_cat,
+            }
+        )
+
+    # Sort by total_complaints DESC, then unresolved_complaints DESC
+    summary_list.sort(
+        key=lambda x: (x["total_complaints"], x["unresolved_complaints"]),
+        reverse=True,
+    )
+
+    # Take top 6
+    top_6 = summary_list[:6]
+    max_count = top_6[0]["total_complaints"] if top_6 else 1
+
+    for idx, item in enumerate(top_6):
+        item["rank"] = idx + 1
+        item["is_hotspot"] = idx == 0
+        item["percentage"] = (
+            round((item["total_complaints"] / max_count) * 100) if max_count > 0 else 0
+        )
+
+    return jsonify(top_6)
+
+
 @app.route("/api/stats", methods=["GET"])
 def get_stats():
     with get_db() as conn:
@@ -575,6 +671,7 @@ def get_complaints():
     priority_filter = request.args.get("priority")
     category_filter = request.args.get("category")
     recurring_filter = request.args.get("recurring")
+    location_filter = request.args.get("location")
     search_query = request.args.get("search")
 
     query = """
@@ -642,6 +739,11 @@ def get_complaints():
             # Filter recurring if requested
             if recurring_filter in ["true", "1", "True"]:
                 if not item["is_recurring"]:
+                    continue
+
+            # Filter location if requested (case-insensitive, ignoring extra spaces)
+            if location_filter and location_filter.strip():
+                if normalize_location(item["location"]) != normalize_location(location_filter):
                     continue
 
             complaints.append(item)
